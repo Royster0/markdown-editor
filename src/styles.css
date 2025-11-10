@@ -295,6 +295,7 @@ body {
 
 /* Sidebar */
 .sidebar {
+  position: relative;
   width: 250px;
   min-width: 250px;
   background-color: var(--bg-secondary);
@@ -302,7 +303,7 @@ body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: width 0.3s ease, min-width 0.3s ease, border-color 0.3s ease;
+  transition: border-color 0.3s ease;
 }
 
 .sidebar.collapsed {
@@ -425,6 +426,69 @@ body {
 
 .tree-children.collapsed {
   display: none;
+}
+
+/* Context Menu */
+.context-menu {
+  position: fixed;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  padding: 4px 0;
+  min-width: 200px;
+  z-index: 10000;
+  display: none;
+}
+
+.context-menu.visible {
+  display: block;
+}
+
+.context-menu-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--text-primary);
+  font-size: 13px;
+  transition: background-color 0.1s;
+}
+
+.context-menu-item:hover {
+  background-color: var(--accent-color);
+  color: white;
+}
+
+.context-menu-item svg {
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  flex-shrink: 0;
+}
+
+.context-menu-separator {
+  height: 1px;
+  background-color: var(--border-color);
+  margin: 4px 0;
+}
+
+/* Resize Handle */
+.sidebar-resize-handle {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  cursor: ew-resize;
+  z-index: 100;
+  transition: background-color 0.2s;
+}
+
+.sidebar-resize-handle:hover,
+.sidebar-resize-handle.resizing {
+  background-color: var(--accent-color);
 }
 
 /* Editor Container */

@@ -18,6 +18,8 @@ export const state: EditorState = {
   currentTheme: "dark",
   availableThemes: [],
   statusBarVisible: true,
+  confirmFileDelete: true,
+  confirmFolderDelete: true,
   keybinds: {},
 };
 

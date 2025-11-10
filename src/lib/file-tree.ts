@@ -9,6 +9,8 @@ import { fileTree, sidebar, explorerHeader } from "./dom";
 import { state } from "./state";
 import { loadFileContent } from "./file-operations";
 import { reinitializeThemeForFolder } from "./theme";
+import { reinitializeSettingsForFolder } from "./settings";
+import { showContextMenu, initContextMenu } from "./context-menu";
 
 /**
  * Update the explorer header to show the current folder name
@@ -39,6 +41,8 @@ export async function openFolder() {
       await loadFileTree(selected);
       // Reinitialize theme system for the new folder
       await reinitializeThemeForFolder();
+      // Reinitialize settings for the new folder
+      await reinitializeSettingsForFolder();
     }
   } catch (error) {
     console.error("Error opening folder:", error);
@@ -66,6 +70,145 @@ async function loadFileTree(folderPath: string) {
     document
       .getElementById("open-folder-sidebar-retry")
       ?.addEventListener("click", openFolder);
+  }
+}
+
+// Track expanded folders to preserve state during refresh
+const expandedFolders = new Set<string>();
+
+/**
+ * Refresh the file tree (reload current folder)
+ */
+export async function refreshFileTree() {
+  if (state.currentFolder) {
+    await loadFileTree(state.currentFolder);
+  }
+}
+
+/**
+ * Refresh file tree and try to expand to show a specific file
+ * @param filePath - Path to the file to reveal
+ */
+export async function refreshAndRevealFile(filePath: string) {
+  await refreshFileTree();
+
+  if (!state.currentFolder) return;
+
+  // Try to expand parent folders and reveal the file
+  await expandAndRevealPath(filePath);
+}
+
+/**
+ * Expand parent folders and reveal a file/folder in the tree
+ * @param targetPath - Path to the file or folder to reveal
+ */
+async function expandAndRevealPath(targetPath: string) {
+  // Get the parent directory of the target
+  const separator = targetPath.includes("\\") ? "\\" : "/";
+  const parts = targetPath.split(separator);
+
+  // If it's at root level, just find and select it
+  if (parts.length <= (state.currentFolder?.split(separator).length || 0) + 1) {
+    selectTreeItem(targetPath);
+    return;
+  }
+
+  // Need to expand parent folders
+  // Start from the root and expand each level
+  let currentPath = state.currentFolder!;
+  const rootParts = currentPath.split(separator);
+  const targetParts = targetPath.split(separator);
+
+  // Find which folders need to be expanded
+  for (let i = rootParts.length; i < targetParts.length - 1; i++) {
+    currentPath = targetParts.slice(0, i + 1).join(separator);
+
+    // Find the folder in the tree
+    const folderItem = findTreeItemByPath(currentPath);
+    if (folderItem) {
+      const isDir = folderItem.getAttribute("data-is-dir") === "true";
+      if (isDir) {
+        // Find the children container
+        const container = folderItem.parentElement;
+        const childrenContainer = container?.querySelector(".tree-children");
+
+        if (childrenContainer && childrenContainer.classList.contains("collapsed")) {
+          // Expand this folder
+          const arrow = folderItem.querySelector(".tree-item-arrow");
+          childrenContainer.classList.remove("collapsed");
+          arrow?.classList.add("expanded");
+          expandedFolders.add(currentPath);
+
+          // Load children if not already loaded
+          if (childrenContainer.children.length === 0) {
+            try {
+              const children = await invoke<FileEntry[]>("read_directory", {
+                path: currentPath,
+              });
+
+              const level = i - rootParts.length + 1;
+              children.forEach((childEntry: FileEntry) => {
+                const childItem = createTreeItem(childEntry, level);
+                childrenContainer.appendChild(childItem);
+              });
+            } catch (error) {
+              console.error("Error loading folder contents:", error);
+              return;
+            }
+          }
+        }
+      }
+    } else {
+      console.error("Could not find folder in tree:", currentPath);
+      return;
+    }
+  }
+
+  // Now select the target item
+  // Wait a bit for DOM to update
+  setTimeout(() => {
+    selectTreeItem(targetPath);
+  }, 100);
+}
+
+/**
+ * Find a tree item by its path
+ */
+function findTreeItemByPath(path: string): HTMLElement | null {
+  const treeItems = fileTree.querySelectorAll(".tree-item");
+  for (const item of Array.from(treeItems)) {
+    if (item.getAttribute("data-path") === path) {
+      return item as HTMLElement;
+    }
+  }
+  return null;
+}
+
+/**
+ * Select and scroll to a tree item
+ */
+function selectTreeItem(path: string) {
+  // Remove previous selection
+  document.querySelectorAll(".tree-item.selected")
+    .forEach((el) => el.classList.remove("selected"));
+
+  const item = findTreeItemByPath(path);
+  if (item) {
+    item.classList.add("selected");
+    item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } else {
+    console.warn("Could not find tree item to select:", path);
+  }
+}
+
+/**
+ * Context menu handler for empty space in file tree
+ */
+function handleFileTreeContextMenu(e: MouseEvent) {
+  // Only trigger if clicking directly on fileTree (not on tree items)
+  if (e.target === fileTree) {
+    e.preventDefault();
+    showContextMenu(e.clientX, e.clientY, null, false);
   }
 }
 
@@ -141,6 +284,13 @@ function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement {
 
   container.appendChild(item);
 
+  // Right-click handler for context menu
+  item.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showContextMenu(e.clientX, e.clientY, entry.path, entry.is_dir);
+  });
+
   // Children container for folders
   if (entry.is_dir) {
     const childrenContainer = document.createElement("div");
@@ -189,6 +339,7 @@ async function toggleFolder(
     // Expand folder
     childrenContainer.classList.remove("collapsed");
     arrow?.classList.add("expanded");
+    expandedFolders.add(entry.path);
 
     // Load children if not already loaded
     if (childrenContainer.children.length === 0) {
@@ -208,6 +359,7 @@ async function toggleFolder(
     // Collapse folder
     childrenContainer.classList.add("collapsed");
     arrow?.classList.remove("expanded");
+    expandedFolders.delete(entry.path);
   }
 }
 
@@ -221,4 +373,63 @@ export function toggleSidebar() {
   } else {
     sidebar.classList.add("collapsed");
   }
+}
+
+/**
+ * Initialize sidebar resizing functionality
+ */
+export function initSidebarResize() {
+  // Create resize handle
+  const resizeHandle = document.createElement("div");
+  resizeHandle.className = "sidebar-resize-handle";
+  sidebar.appendChild(resizeHandle);
+
+  let isResizing = false;
+  let startX = 0;
+  let startWidth = 0;
+
+  resizeHandle.addEventListener("mousedown", (e) => {
+    isResizing = true;
+    startX = e.clientX;
+    startWidth = sidebar.offsetWidth;
+    resizeHandle.classList.add("resizing");
+    document.body.style.cursor = "ew-resize";
+    document.body.style.userSelect = "none";
+    e.preventDefault();
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isResizing) return;
+
+    const delta = e.clientX - startX;
+    const newWidth = startWidth + delta;
+
+    // Enforce min and max width
+    const minWidth = 150;
+    const maxWidth = 600;
+    const clampedWidth = Math.max(minWidth, Math.min(maxWidth, newWidth));
+
+    sidebar.style.width = `${clampedWidth}px`;
+    sidebar.style.minWidth = `${clampedWidth}px`;
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (isResizing) {
+      isResizing = false;
+      resizeHandle.classList.remove("resizing");
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+  });
+}
+
+/**
+ * Initialize file tree functionality
+ */
+export function initFileTree() {
+  initContextMenu();
+  initSidebarResize();
+
+  // Add context menu handler for empty space (only once during init)
+  fileTree.addEventListener("contextmenu", handleFileTreeContextMenu);
 }

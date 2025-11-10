@@ -26,6 +26,10 @@ export interface EditorState {
   availableThemes: string[];
   /** Whether status bar is visible */
   statusBarVisible: boolean;
+  /** Whether to confirm before deleting files */
+  confirmFileDelete: boolean;
+  /** Whether to confirm before deleting folders */
+  confirmFolderDelete: boolean;
   /** Custom keybinds */
   keybinds: Record<string, string>;
 }
@@ -74,6 +78,8 @@ export interface ThemeConfig {
 export interface AppConfig {
   current_theme: string;
   status_bar_visible?: boolean;
+  confirm_file_delete?: boolean;
+  confirm_folder_delete?: boolean;
   keybinds?: Record<string, string>;
   custom_settings?: Record<string, unknown>;
 }

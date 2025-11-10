@@ -20,11 +20,19 @@ pub struct AppConfig {
     pub status_bar_visible: bool,
     #[serde(default)]
     pub keybinds: HashMap<String, String>,
+    #[serde(default = "default_true")]
+    pub confirm_file_delete: bool,
+    #[serde(default = "default_true")]
+    pub confirm_folder_delete: bool,
     #[serde(default)]
     pub custom_settings: HashMap<String, serde_json::Value>,
 }
 
 fn default_status_bar_visible() -> bool {
+    true
+}
+
+fn default_true() -> bool {
     true
 }
 
@@ -34,6 +42,8 @@ impl Default for AppConfig {
             current_theme: "dark".to_string(),
             status_bar_visible: true,
             keybinds: HashMap::new(),
+            confirm_file_delete: true,
+            confirm_folder_delete: true,
             custom_settings: HashMap::new(),
         }
     }

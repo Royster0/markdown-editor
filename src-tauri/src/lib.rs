@@ -107,6 +107,173 @@ fn read_file_from_path(path: String) -> Result<String, String> {
         .map_err(|e| format!("Failed to read file: {}", e))
 }
 
+// Create a new file
+#[tauri::command]
+fn create_file(path: String) -> Result<(), String> {
+    let file_path = PathBuf::from(&path);
+
+    // Check if parent directory exists
+    if let Some(parent) = file_path.parent() {
+        if !parent.exists() {
+            return Err(format!("Parent directory does not exist: {:?}", parent));
+        }
+    }
+
+    // Check if file already exists
+    if file_path.exists() {
+        return Err("File already exists".to_string());
+    }
+
+    // Create the file
+    fs::write(&file_path, "").map_err(|e| format!("Failed to create file: {}", e))?;
+
+    // Verify the file was created
+    if !file_path.exists() {
+        return Err("File was not created successfully".to_string());
+    }
+
+    println!("File created successfully at: {:?}", file_path);
+    Ok(())
+}
+
+// Create a new folder
+#[tauri::command]
+fn create_folder(path: String) -> Result<(), String> {
+    let dir_path = PathBuf::from(&path);
+
+    // Check if parent directory exists
+    if let Some(parent) = dir_path.parent() {
+        if !parent.exists() {
+            return Err("Parent directory does not exist".to_string());
+        }
+    }
+
+    // Check if folder already exists
+    if dir_path.exists() {
+        return Err("Folder already exists".to_string());
+    }
+
+    // Create the folder
+    fs::create_dir(&dir_path)
+        .map_err(|e| format!("Failed to create folder: {}", e))
+}
+
+// Delete a file
+#[tauri::command]
+fn delete_file(path: String) -> Result<(), String> {
+    let file_path = PathBuf::from(&path);
+
+    // Check if file exists
+    if !file_path.exists() {
+        return Err("File does not exist".to_string());
+    }
+
+    // Check if it's actually a file
+    if !file_path.is_file() {
+        return Err("Path is not a file".to_string());
+    }
+
+    // Delete the file
+    fs::remove_file(&file_path)
+        .map_err(|e| format!("Failed to delete file: {}", e))?;
+
+    println!("File deleted successfully: {:?}", file_path);
+    Ok(())
+}
+
+// Delete a folder (recursively)
+#[tauri::command]
+fn delete_folder(path: String) -> Result<(), String> {
+    let dir_path = PathBuf::from(&path);
+
+    // Check if folder exists
+    if !dir_path.exists() {
+        return Err("Folder does not exist".to_string());
+    }
+
+    // Check if it's actually a directory
+    if !dir_path.is_dir() {
+        return Err("Path is not a folder".to_string());
+    }
+
+    // Delete the folder recursively
+    fs::remove_dir_all(&dir_path)
+        .map_err(|e| format!("Failed to delete folder: {}", e))?;
+
+    println!("Folder deleted successfully: {:?}", dir_path);
+    Ok(())
+}
+
+// Count contents of a folder (files and subfolders)
+#[tauri::command]
+fn count_folder_contents(path: String) -> Result<(usize, usize), String> {
+    let dir_path = PathBuf::from(&path);
+
+    if !dir_path.exists() {
+        return Err("Folder does not exist".to_string());
+    }
+
+    if !dir_path.is_dir() {
+        return Err("Path is not a folder".to_string());
+    }
+
+    let mut file_count = 0;
+    let mut folder_count = 0;
+
+    let entries = fs::read_dir(&dir_path)
+        .map_err(|e| format!("Failed to read directory: {}", e))?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let path = entry.path();
+        let name = entry.file_name().to_string_lossy().to_string();
+
+        // Skip hidden files and directories
+        if name.starts_with('.') {
+            continue;
+        }
+
+        if path.is_dir() {
+            folder_count += 1;
+        } else {
+            file_count += 1;
+        }
+    }
+
+    Ok((file_count, folder_count))
+}
+
+// Rename a file or folder
+#[tauri::command]
+fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
+    let old_path_buf = PathBuf::from(&old_path);
+
+    // Check if path exists
+    if !old_path_buf.exists() {
+        return Err("Path does not exist".to_string());
+    }
+
+    // Get parent directory
+    let parent = old_path_buf.parent()
+        .ok_or_else(|| "Cannot get parent directory".to_string())?;
+
+    // Create new path
+    let new_path_buf = parent.join(&new_name);
+
+    // Check if new path already exists
+    if new_path_buf.exists() {
+        return Err("A file or folder with that name already exists".to_string());
+    }
+
+    // Rename
+    fs::rename(&old_path_buf, &new_path_buf)
+        .map_err(|e| format!("Failed to rename: {}", e))?;
+
+    let new_path = new_path_buf.to_string_lossy().to_string();
+    println!("Renamed {:?} to {:?}", old_path, new_path);
+    Ok(new_path)
+}
+
 // Theme and config commands
 
 /// Initialize the .loom directory structure
@@ -219,6 +386,12 @@ pub fn run() {
             render_markdown_batch,
             read_directory,
             read_file_from_path,
+            create_file,
+            create_folder,
+            delete_file,
+            delete_folder,
+            count_folder_contents,
+            rename_path,
             init_loom_dir,
             get_loom_directory,
             load_config,
