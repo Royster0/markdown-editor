@@ -121,8 +121,24 @@ async function renderMarkdownBatch(requests: RenderRequest[]): Promise<LineRende
 }
 
 // Post-process HTML to render LaTeX (frontend-only since we use KaTeX)
-// Optimized: only process if line contains LaTeX markers
+// Optimized: only process if line contains LaTeX markers or is a math block
 function renderLatexInHtml(html: string): string {
+  // Check for math block lines and render them with KaTeX in display mode
+  if (html.includes('class="math-block-line"')) {
+    return html.replace(/<span class="math-block-line">([^<]+)<\/span>/g, (match, content) => {
+      try {
+        const latex = content.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+        const rendered = katex.renderToString(latex.trim(), {
+          displayMode: true,
+          throwOnError: false,
+        });
+        return `<span class="math-block-line">${rendered}</span>`;
+      } catch (e) {
+        return match;
+      }
+    });
+  }
+
   // Quick check: if no $ symbol, skip LaTeX processing entirely
   if (!html.includes('$')) {
     return html;
@@ -209,15 +225,6 @@ async function setEditorContent(text: string) {
   editor.appendChild(fragment);
 }
 
-// Update a specific line (currently unused, but kept for potential future use)
-// function updateLine(lineIndex: number, rawText: string, isEditing: boolean) {
-//   const lineDiv = editor.childNodes[lineIndex] as HTMLElement;
-//   if (lineDiv) {
-//     lineDiv.setAttribute("data-raw", rawText);
-//     lineDiv.innerHTML = renderMarkdownLine(rawText, isEditing);
-//   }
-// }
-
 // Render all lines
 async function renderAllLines() {
   const allLines = getAllLines();
@@ -249,35 +256,6 @@ async function renderAllLines() {
     }
   }
 }
-
-// Save cursor position (currently unused, kept for reference)
-// function saveCursorPosition() {
-//   const selection = window.getSelection();
-//   if (!selection || selection.rangeCount === 0) return null;
-//
-//   const range = selection.getRangeAt(0);
-//   return {
-//     startContainer: range.startContainer,
-//     startOffset: range.startOffset,
-//   };
-// }
-//
-// // Restore cursor position
-// function restoreCursorPosition(position: any) {
-//   if (!position) return;
-//
-//   const selection = window.getSelection();
-//   const range = document.createRange();
-//
-//   try {
-//     range.setStart(position.startContainer, position.startOffset);
-//     range.collapse(true);
-//     selection?.removeAllRanges();
-//     selection?.addRange(range);
-//   } catch (e) {
-//     // Cursor position no longer valid
-//   }
-// }
 
 // Handle input
 editor.addEventListener("input", async () => {

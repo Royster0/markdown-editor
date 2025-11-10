@@ -237,14 +237,16 @@ code {
 /* Code blocks */
 .code-block-start,
 .code-block-end {
-  display: none; /* Hide the ``` markers when not editing */
   color: var(--text-secondary);
   font-family: "Consolas", "Monaco", "Courier New", monospace;
+  opacity: 0.3; /* Make barely visible but still clickable */
+  font-size: 0.8em;
 }
 
-/* Show code block markers when editing */
+/* Show code block markers fully when editing */
 .editing .code-block-start,
 .editing .code-block-end {
+  opacity: 1;
   display: inline;
 }
 
@@ -261,6 +263,30 @@ code {
   line-height: 1.5;
   white-space: pre;
   overflow-x: auto;
+}
+
+/* Math blocks */
+.math-block-start,
+.math-block-end {
+  color: var(--text-secondary);
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  opacity: 0.3;
+  font-size: 0.8em;
+}
+
+.editing .math-block-start,
+.editing .math-block-end {
+  opacity: 1;
+  display: inline;
+}
+
+.math-block-line {
+  display: block;
+  color: var(--h3-color);
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 1em;
+  line-height: 1.5;
+  padding: 0.2em 0;
 }
 
 a {

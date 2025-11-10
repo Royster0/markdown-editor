@@ -1,6 +1,5 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use rayon::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LineRenderResult {
@@ -28,6 +27,27 @@ fn is_in_code_block(line_index: usize, all_lines: &[String]) -> (bool, bool, boo
         if line.trim().starts_with("```") {
             if i == line_index {
                 // This line is a code block boundary
+                return (true, !in_block, in_block);
+            }
+            in_block = !in_block;
+        }
+    }
+
+    (in_block, false, false)
+}
+
+/// Check if a line is inside a math block
+fn is_in_math_block(line_index: usize, all_lines: &[String]) -> (bool, bool, bool) {
+    let mut in_block = false;
+
+    for (i, line) in all_lines.iter().enumerate() {
+        if i > line_index {
+            break;
+        }
+
+        if line.trim() == "$$" {
+            if i == line_index {
+                // This line is a math block boundary
                 return (true, !in_block, in_block);
             }
             in_block = !in_block;
@@ -168,6 +188,48 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
         };
     }
 
+    // Check if this line is part of a math block
+    let (in_math_block, is_math_start, is_math_end) = is_in_math_block(line_index, all_lines);
+
+    if is_math_start {
+        // Starting $$ line
+        if is_editing {
+            return LineRenderResult {
+                html: format!("<span class=\"math-block-start\">{}</span>", escape_html(line.trim())),
+                is_code_block_boundary: true,
+            };
+        } else {
+            return LineRenderResult {
+                html: "<span class=\"math-block-start\"></span>".to_string(),
+                is_code_block_boundary: true,
+            };
+        }
+    }
+
+    if is_math_end {
+        // Ending $$ line
+        if is_editing {
+            return LineRenderResult {
+                html: format!("<span class=\"math-block-end\">{}</span>", escape_html(line.trim())),
+                is_code_block_boundary: true,
+            };
+        } else {
+            return LineRenderResult {
+                html: "<span class=\"math-block-end\"></span>".to_string(),
+                is_code_block_boundary: true,
+            };
+        }
+    }
+
+    if in_math_block {
+        // Inside math block - wrap in a span with class for LaTeX rendering
+        // The frontend KaTeX will process this
+        return LineRenderResult {
+            html: format!("<span class=\"math-block-line\">{}</span>", escape_html(line)),
+            is_code_block_boundary: false,
+        };
+    }
+
     // Empty line
     if line.trim().is_empty() {
         return LineRenderResult {
@@ -234,7 +296,7 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
         return LineRenderResult {
             html: format!(
                 "<span class=\"list-item\" style=\"padding-left: {}px\">\
-                <span class=\"list-marker {}\">{}</span>\
+                <span class=\"list-marker {}\">{}</span> \
                 {}\
                 </span>",
                 indent * 20,
