@@ -183,9 +183,15 @@ async function createNewFile(parentPath: string | null, isMd: boolean = true) {
     await invoke("create_file", { path: filePath });
     console.log("File created successfully:", filePath);
 
+    // Small delay to ensure file is fully written to disk
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     // Refresh the file tree and try to reveal the new file
     console.log("Refreshing file tree and revealing file...");
     await refreshAndRevealFile(filePath);
+
+    // Another small delay before loading
+    await new Promise(resolve => setTimeout(resolve, 100));
 
     // Open the new file in the editor
     console.log("Loading file content into editor...");
@@ -193,7 +199,8 @@ async function createNewFile(parentPath: string | null, isMd: boolean = true) {
     console.log("File loaded successfully in editor");
   } catch (error) {
     console.error("Failed to create/load file:", error);
-    alert(`Failed to create file: ${error}`);
+    console.error("File path was:", filePath);
+    alert(`Failed to create/load file: ${error}\n\nPath: ${filePath}`);
   }
 }
 

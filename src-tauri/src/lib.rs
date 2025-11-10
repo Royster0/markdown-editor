@@ -115,7 +115,7 @@ fn create_file(path: String) -> Result<(), String> {
     // Check if parent directory exists
     if let Some(parent) = file_path.parent() {
         if !parent.exists() {
-            return Err("Parent directory does not exist".to_string());
+            return Err(format!("Parent directory does not exist: {:?}", parent));
         }
     }
 
@@ -125,8 +125,15 @@ fn create_file(path: String) -> Result<(), String> {
     }
 
     // Create the file
-    fs::write(&file_path, "")
-        .map_err(|e| format!("Failed to create file: {}", e))
+    fs::write(&file_path, "").map_err(|e| format!("Failed to create file: {}", e))?;
+
+    // Verify the file was created
+    if !file_path.exists() {
+        return Err("File was not created successfully".to_string());
+    }
+
+    println!("File created successfully at: {:?}", file_path);
+    Ok(())
 }
 
 // Create a new folder
