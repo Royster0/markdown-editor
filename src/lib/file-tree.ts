@@ -70,12 +70,50 @@ async function loadFileTree(folderPath: string) {
   }
 }
 
+// Track expanded folders to preserve state during refresh
+const expandedFolders = new Set<string>();
+
 /**
  * Refresh the file tree (reload current folder)
  */
 export async function refreshFileTree() {
   if (state.currentFolder) {
     await loadFileTree(state.currentFolder);
+  }
+}
+
+/**
+ * Refresh file tree and try to expand to show a specific file
+ * @param filePath - Path to the file to reveal
+ */
+export async function refreshAndRevealFile(filePath: string) {
+  await refreshFileTree();
+
+  // Try to find and expand parent folders to show the file
+  // This is a simple implementation that works for root-level files
+  // For nested files, we'd need more complex logic
+  if (state.currentFolder) {
+    // Get all tree items
+    const treeItems = fileTree.querySelectorAll(".tree-item");
+    treeItems.forEach((item) => {
+      const itemPath = item.getAttribute("data-path");
+      if (itemPath === filePath) {
+        // Select and scroll to the item
+        item.classList.add("selected");
+        item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    });
+  }
+}
+
+/**
+ * Context menu handler for empty space in file tree
+ */
+function handleFileTreeContextMenu(e: MouseEvent) {
+  // Only trigger if clicking directly on fileTree (not on tree items)
+  if (e.target === fileTree) {
+    e.preventDefault();
+    showContextMenu(e.clientX, e.clientY, null, false);
   }
 }
 
@@ -89,15 +127,6 @@ function renderFileTree(entries: FileEntry[]) {
   entries.forEach((entry) => {
     const treeItem = createTreeItem(entry);
     fileTree.appendChild(treeItem);
-  });
-
-  // Add context menu handler for empty space
-  fileTree.addEventListener("contextmenu", (e) => {
-    // Only trigger if clicking directly on fileTree (not on tree items)
-    if (e.target === fileTree) {
-      e.preventDefault();
-      showContextMenu(e.clientX, e.clientY, null, false);
-    }
   });
 }
 
@@ -215,6 +244,7 @@ async function toggleFolder(
     // Expand folder
     childrenContainer.classList.remove("collapsed");
     arrow?.classList.add("expanded");
+    expandedFolders.add(entry.path);
 
     // Load children if not already loaded
     if (childrenContainer.children.length === 0) {
@@ -234,6 +264,7 @@ async function toggleFolder(
     // Collapse folder
     childrenContainer.classList.add("collapsed");
     arrow?.classList.remove("expanded");
+    expandedFolders.delete(entry.path);
   }
 }
 
@@ -303,4 +334,7 @@ export function initSidebarResize() {
 export function initFileTree() {
   initContextMenu();
   initSidebarResize();
+
+  // Add context menu handler for empty space (only once during init)
+  fileTree.addEventListener("contextmenu", handleFileTreeContextMenu);
 }

@@ -4,7 +4,7 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import { state } from "./state";
-import { refreshFileTree } from "./file-tree";
+import { refreshAndRevealFile } from "./file-tree";
 import { loadFileContent } from "./file-operations";
 
 interface ContextMenuItem {
@@ -161,23 +161,34 @@ async function createNewFile(parentPath: string | null, isMd: boolean = true) {
   const fileName = prompt(
     isMd ? "Enter file name (without .md extension):" : "Enter file name:"
   );
-  if (!fileName) return;
+  if (!fileName || fileName.trim() === "") return;
+
+  // Sanitize filename - remove invalid characters
+  const sanitizedName = fileName.trim().replace(/[<>:"/\\|?*]/g, "");
+  if (sanitizedName === "") {
+    alert("Invalid file name");
+    return;
+  }
 
   // Add .md extension if it's a markdown file
-  const fullFileName = isMd && !fileName.endsWith(".md")
-    ? `${fileName}.md`
-    : fileName;
+  const fullFileName = isMd && !sanitizedName.endsWith(".md")
+    ? `${sanitizedName}.md`
+    : sanitizedName;
 
   const separator = parentPath.includes("\\") ? "\\" : "/";
   const filePath = `${parentPath}${separator}${fullFileName}`;
 
   try {
     await invoke("create_file", { path: filePath });
-    // Refresh the file tree to show the new file
-    await refreshFileTree();
-    // Open the new file
+    console.log("File created successfully:", filePath);
+
+    // Refresh the file tree and try to reveal the new file
+    await refreshAndRevealFile(filePath);
+
+    // Open the new file in the editor
     await loadFileContent(filePath);
   } catch (error) {
+    console.error("Failed to create file:", error);
     alert(`Failed to create file: ${error}`);
   }
 }
@@ -192,16 +203,26 @@ async function createNewFolder(parentPath: string | null) {
   }
 
   const folderName = prompt("Enter folder name:");
-  if (!folderName) return;
+  if (!folderName || folderName.trim() === "") return;
+
+  // Sanitize folder name - remove invalid characters
+  const sanitizedName = folderName.trim().replace(/[<>:"/\\|?*]/g, "");
+  if (sanitizedName === "") {
+    alert("Invalid folder name");
+    return;
+  }
 
   const separator = parentPath.includes("\\") ? "\\" : "/";
-  const folderPath = `${parentPath}${separator}${folderName}`;
+  const folderPath = `${parentPath}${separator}${sanitizedName}`;
 
   try {
     await invoke("create_folder", { path: folderPath });
+    console.log("Folder created successfully:", folderPath);
+
     // Refresh the file tree to show the new folder
-    await refreshFileTree();
+    await refreshAndRevealFile(folderPath);
   } catch (error) {
+    console.error("Failed to create folder:", error);
     alert(`Failed to create folder: ${error}`);
   }
 }
