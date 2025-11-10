@@ -1,16 +1,21 @@
+/**
+ * Markdown rendering - Main module
+ *
+ * This module coordinates markdown rendering by using block detection
+ * and inline rendering utilities to convert markdown to HTML.
+ */
+
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use once_cell::sync::Lazy;
 
-// Pre-compiled regex patterns for better performance
-static BOLD_ITALIC_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\*\*\*(.+?)\*\*\*").unwrap());
-static BOLD_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\*\*(.+?)\*\*").unwrap());
-static BOLD_UNDERSCORE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"__(.+?)__").unwrap());
-static ITALIC_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\*(.+?)\*").unwrap());
-static ITALIC_UNDERSCORE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"_(.+?)_").unwrap());
-static STRIKE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"~~(.+?)~~").unwrap());
-static CODE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"`([^`]+)`").unwrap());
-static LINK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[([^\]]+)\]\(([^\)]+)\)").unwrap());
+mod block_detection;
+mod inline_rendering;
+
+use block_detection::{is_in_code_block, is_in_math_block};
+use inline_rendering::{render_inline_markdown, render_inline_markdown_with_markers};
+
+// Pre-compiled regex patterns for block-level elements
 static LANG_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^```(\w+)?").unwrap());
 static HR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(---+|\*\*\*+|___+)$").unwrap());
 static HEADER_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(#{1,6})\s+(.+)$").unwrap());
@@ -31,106 +36,9 @@ pub struct RenderRequest {
     pub is_editing: bool,
 }
 
-/// Check if a line is inside a code block
-fn is_in_code_block(line_index: usize, all_lines: &[String]) -> (bool, bool, bool) {
-    let mut in_block = false;
-
-    for (i, line) in all_lines.iter().enumerate() {
-        if i > line_index {
-            break;
-        }
-
-        if line.trim().starts_with("```") {
-            if i == line_index {
-                // This line is a code block boundary
-                return (true, !in_block, in_block);
-            }
-            in_block = !in_block;
-        }
-    }
-
-    (in_block, false, false)
-}
-
-/// Check if a line is inside a math block
-fn is_in_math_block(line_index: usize, all_lines: &[String]) -> (bool, bool, bool) {
-    let mut in_block = false;
-
-    for (i, line) in all_lines.iter().enumerate() {
-        if i > line_index {
-            break;
-        }
-
-        if line.trim() == "$$" {
-            if i == line_index {
-                // This line is a math block boundary
-                return (true, !in_block, in_block);
-            }
-            in_block = !in_block;
-        }
-    }
-
-    (in_block, false, false)
-}
-
 /// Escape HTML entities
 fn escape_html(text: &str) -> String {
     html_escape::encode_text(text).to_string()
-}
-
-/// Render inline markdown (bold, italic, code, links, etc.)
-/// Note: LaTeX rendering is still handled on the frontend via KaTeX
-fn render_inline_markdown(text: &str) -> String {
-    let mut result = text.to_string();
-
-    // Bold + Italic (must come before individual bold/italic)
-    result = BOLD_ITALIC_RE.replace_all(&result, "<strong><em>$1</em></strong>").to_string();
-
-    // Bold
-    result = BOLD_RE.replace_all(&result, "<strong>$1</strong>").to_string();
-    result = BOLD_UNDERSCORE_RE.replace_all(&result, "<strong>$1</strong>").to_string();
-
-    // Italic
-    result = ITALIC_RE.replace_all(&result, "<em>$1</em>").to_string();
-    result = ITALIC_UNDERSCORE_RE.replace_all(&result, "<em>$1</em>").to_string();
-
-    // Strikethrough
-    result = STRIKE_RE.replace_all(&result, "<del>$1</del>").to_string();
-
-    // Inline code
-    result = CODE_RE.replace_all(&result, "<code>$1</code>").to_string();
-
-    // Links
-    result = LINK_RE.replace_all(&result, "<a href=\"$2\">$1</a>").to_string();
-
-    result
-}
-
-/// Render inline markdown with markers visible (for editing mode)
-fn render_inline_markdown_with_markers(text: &str) -> String {
-    let mut result = text.to_string();
-
-    // Bold + Italic (must come before individual bold/italic)
-    result = BOLD_ITALIC_RE.replace_all(&result, "<strong><em>***$1***</em></strong>").to_string();
-
-    // Bold
-    result = BOLD_RE.replace_all(&result, "<strong>**$1**</strong>").to_string();
-    result = BOLD_UNDERSCORE_RE.replace_all(&result, "<strong>__$1__</strong>").to_string();
-
-    // Italic
-    result = ITALIC_RE.replace_all(&result, "<em>*$1*</em>").to_string();
-    result = ITALIC_UNDERSCORE_RE.replace_all(&result, "<em>_$1_</em>").to_string();
-
-    // Strikethrough
-    result = STRIKE_RE.replace_all(&result, "<del>~~$1~~</del>").to_string();
-
-    // Inline code
-    result = CODE_RE.replace_all(&result, "<code>`$1`</code>").to_string();
-
-    // Links
-    result = LINK_RE.replace_all(&result, "<a href=\"$2\">[$1]($2)</a>").to_string();
-
-    result
 }
 
 /// Render a single markdown line to HTML
@@ -145,15 +53,19 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
 
     if is_start {
         // Starting ``` line - extract language if present
-        let lang = LANG_RE.captures(line.trim())
+        let lang = LANG_RE
+            .captures(line.trim())
             .and_then(|cap| cap.get(1))
             .map(|m| m.as_str())
             .unwrap_or("");
 
         if is_editing {
-            // Show the ``` with styling
             return LineRenderResult {
-                html: format!("<span class=\"code-block-start\" data-lang=\"{}\">{}</span>", lang, escape_html(line.trim())),
+                html: format!(
+                    "<span class=\"code-block-start\" data-lang=\"{}\">{}</span>",
+                    lang,
+                    escape_html(line.trim())
+                ),
                 is_code_block_boundary: true,
             };
         } else {
@@ -182,13 +94,11 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
     if in_block {
         // Inside code block
         if is_editing {
-            // When editing, show raw code with a span for styling (not <code> to prevent corruption)
             return LineRenderResult {
                 html: format!("<span class=\"code-block-line-editing\">{}</span>", escape_html(line)),
                 is_code_block_boundary: false,
             };
         } else {
-            // When not editing, wrap in code tag for styling
             return LineRenderResult {
                 html: format!("<code class=\"code-block-line\">{}</code>", escape_html(line)),
                 is_code_block_boundary: false,
@@ -232,14 +142,11 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
     if in_math_block {
         // Inside math block
         if is_editing {
-            // When editing, show raw LaTeX in a span wrapper for consistent structure
             return LineRenderResult {
                 html: format!("<span class=\"math-block-line-editing\">{}</span>", escape_html(line)),
                 is_code_block_boundary: false,
             };
         } else {
-            // When not editing, wrap in a span with class for LaTeX rendering
-            // The frontend KaTeX will process this
             return LineRenderResult {
                 html: format!("<span class=\"math-block-line\">{}</span>", escape_html(line)),
                 is_code_block_boundary: false,
@@ -277,14 +184,12 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
         let text = cap.get(2).unwrap().as_str();
 
         if is_editing {
-            // Show markers with styling
             let processed_text = render_inline_markdown_with_markers(text);
             return LineRenderResult {
                 html: format!("<span class=\"heading h{}\">{} {}</span>", level, hashes, processed_text),
                 is_code_block_boundary: false,
             };
         } else {
-            // Hide markers
             let processed_text = render_inline_markdown(text);
             return LineRenderResult {
                 html: format!("<span class=\"heading h{}\">{}</span>", level, processed_text),
@@ -303,19 +208,15 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
         let marker_class = if is_ordered { "ordered" } else { "unordered" };
 
         if is_editing {
-            // In editing mode, show the full markdown including indentation
             let processed_text = render_inline_markdown_with_markers(text);
             return LineRenderResult {
                 html: format!(
                     "<span class=\"list-item\">{}{} {}</span>",
-                    indent_spaces,
-                    marker,
-                    processed_text
+                    indent_spaces, marker, processed_text
                 ),
                 is_code_block_boundary: false,
             };
         } else {
-            // In non-editing mode, use CSS for indentation
             let processed_text = render_inline_markdown(text);
             return LineRenderResult {
                 html: format!(
@@ -407,14 +308,5 @@ mod tests {
         });
         assert!(result1.html.contains("code-block-line"));
         assert!(result1.html.contains("fn main() {}"));
-    }
-
-    #[test]
-    fn test_inline_markdown() {
-        let text = "This is **bold** and *italic* and `code`";
-        let result = render_inline_markdown(text);
-        assert!(result.contains("<strong>bold</strong>"));
-        assert!(result.contains("<em>italic</em>"));
-        assert!(result.contains("<code>code</code>"));
     }
 }
