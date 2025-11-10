@@ -72,17 +72,11 @@ function renderLatex(text: string): string {
 }
 
 // Check if a line index is inside a code block
-function isInCodeBlock(lineIndex: number): { inBlock: boolean; isStart: boolean; isEnd: boolean } {
-  const allLines: string[] = [];
-  for (let i = 0; i < editor.childNodes.length; i++) {
-    const lineDiv = editor.childNodes[i] as HTMLElement;
-    allLines.push(lineDiv.getAttribute("data-raw") || "");
-  }
-
+function isInCodeBlock(lineIndex: number, allLines: string[]): { inBlock: boolean; isStart: boolean; isEnd: boolean } {
   let inBlock = false;
   for (let i = 0; i <= lineIndex; i++) {
     const line = allLines[i];
-    if (line.trim().startsWith("```")) {
+    if (line && line.trim().startsWith("```")) {
       if (i === lineIndex) {
         // This line is a code block boundary
         return { inBlock: true, isStart: !inBlock, isEnd: inBlock };
@@ -95,15 +89,15 @@ function isInCodeBlock(lineIndex: number): { inBlock: boolean; isStart: boolean;
 }
 
 // Convert markdown line to HTML with styling
-function renderMarkdownLine(line: string, isEditing: boolean, lineIndex?: number): string {
+function renderMarkdownLine(line: string, isEditing: boolean, lineIndex?: number, allLines?: string[]): string {
   if (isEditing) {
     // Show raw markdown when editing
     return escapeHtml(line);
   }
 
   // Check if this line is part of a code block
-  if (lineIndex !== undefined) {
-    const codeBlockInfo = isInCodeBlock(lineIndex);
+  if (lineIndex !== undefined && allLines && allLines.length > 0) {
+    const codeBlockInfo = isInCodeBlock(lineIndex, allLines);
 
     if (codeBlockInfo.isStart) {
       // Starting ``` line - extract language if present
@@ -233,18 +227,21 @@ function getCurrentLineNumber(): number {
   return 0;
 }
 
-// Get plain text content from editor
-function getEditorContent(): string {
+// Get all raw line strings from editor
+function getAllLines(): string[] {
   const lines: string[] = [];
   for (let i = 0; i < editor.childNodes.length; i++) {
     const node = editor.childNodes[i];
     if (node.nodeName === "DIV") {
-      lines.push(
-        (node as HTMLElement).getAttribute("data-raw") || node.textContent || ""
-      );
+      lines.push((node as HTMLElement).getAttribute("data-raw") || "");
     }
   }
-  return lines.join("\n");
+  return lines;
+}
+
+// Get plain text content from editor
+function getEditorContent(): string {
+  return getAllLines().join("\n");
 }
 
 // Set editor content from plain text
@@ -258,7 +255,7 @@ function setEditorContent(text: string) {
     lineDiv.className = "editor-line";
     lineDiv.setAttribute("data-raw", line);
     lineDiv.setAttribute("data-line", String(index));
-    lineDiv.innerHTML = renderMarkdownLine(line, false, index);
+    lineDiv.innerHTML = renderMarkdownLine(line, false, index, lines);
     editor.appendChild(lineDiv);
   });
 }
@@ -274,11 +271,12 @@ function setEditorContent(text: string) {
 
 // Render all lines
 function renderAllLines() {
+  const allLines = getAllLines();
   for (let i = 0; i < editor.childNodes.length; i++) {
     const lineDiv = editor.childNodes[i] as HTMLElement;
     const rawText = lineDiv.getAttribute("data-raw") || "";
     const isCurrentLine = i === state.currentLine && state.editMode;
-    lineDiv.innerHTML = renderMarkdownLine(rawText, isCurrentLine, i);
+    lineDiv.innerHTML = renderMarkdownLine(rawText, isCurrentLine, i, allLines);
 
     if (isCurrentLine) {
       lineDiv.classList.add("editing");
@@ -432,6 +430,9 @@ function handleCursorChange() {
     const oldLine = state.currentLine;
     state.currentLine = lineNum;
 
+    // Get all lines for code block detection
+    const allLines = getAllLines();
+
     // Re-render the old line if it exists
     if (oldLine !== null && oldLine < editor.childNodes.length) {
       const oldLineDiv = editor.childNodes[oldLine] as HTMLElement;
@@ -440,7 +441,9 @@ function handleCursorChange() {
         // This ensures any edits made to the line are preserved
         const currentText = oldLineDiv.textContent || "";
         oldLineDiv.setAttribute("data-raw", currentText);
-        oldLineDiv.innerHTML = renderMarkdownLine(currentText, false, oldLine);
+        // Update allLines to reflect the change
+        allLines[oldLine] = currentText;
+        oldLineDiv.innerHTML = renderMarkdownLine(currentText, false, oldLine, allLines);
         oldLineDiv.classList.remove("editing");
       }
     }
@@ -462,7 +465,7 @@ function handleCursorChange() {
       }
 
       // Update the line to show raw markdown
-      currentLineDiv.innerHTML = renderMarkdownLine(rawText, true, lineNum);
+      currentLineDiv.innerHTML = renderMarkdownLine(rawText, true, lineNum, allLines);
       currentLineDiv.classList.add("editing");
 
       // Restore cursor position
@@ -537,11 +540,12 @@ editor.addEventListener("keydown", (e) => {
     }
 
     // Re-render affected lines (from current line onwards)
+    const allLines = getAllLines();
     for (let i = currentLineNum; i < editor.childNodes.length; i++) {
       const lineDiv = editor.childNodes[i] as HTMLElement;
       const rawText = lineDiv.getAttribute("data-raw") || "";
       const isEditing = i === currentLineNum + 1; // New line is in edit mode
-      lineDiv.innerHTML = renderMarkdownLine(rawText, isEditing, i);
+      lineDiv.innerHTML = renderMarkdownLine(rawText, isEditing, i, allLines);
       if (isEditing) {
         lineDiv.classList.add("editing");
       } else {
@@ -611,11 +615,12 @@ editor.addEventListener("keydown", (e) => {
       }
 
       // Re-render affected lines (from previous line onwards)
+      const allLines = getAllLines();
       for (let i = currentLineNum - 1; i < editor.childNodes.length; i++) {
         const lineDiv = editor.childNodes[i] as HTMLElement;
         const rawText = lineDiv.getAttribute("data-raw") || "";
         const isEditing = i === currentLineNum - 1; // Previous line (now merged) is in edit mode
-        lineDiv.innerHTML = renderMarkdownLine(rawText, isEditing, i);
+        lineDiv.innerHTML = renderMarkdownLine(rawText, isEditing, i, allLines);
         if (isEditing) {
           lineDiv.classList.add("editing");
         } else {
@@ -685,11 +690,12 @@ editor.addEventListener("keydown", (e) => {
       }
 
       // Re-render affected lines (from current line onwards)
+      const allLines = getAllLines();
       for (let i = currentLineNum; i < editor.childNodes.length; i++) {
         const lineDiv = editor.childNodes[i] as HTMLElement;
         const rawText = lineDiv.getAttribute("data-raw") || "";
         const isEditing = i === currentLineNum; // Current line (now merged) is in edit mode
-        lineDiv.innerHTML = renderMarkdownLine(rawText, isEditing, i);
+        lineDiv.innerHTML = renderMarkdownLine(rawText, isEditing, i, allLines);
         if (isEditing) {
           lineDiv.classList.add("editing");
         } else {
@@ -849,7 +855,7 @@ document.getElementById("open-file")?.addEventListener("click", async () => {
         lineDiv.setAttribute("data-line", String(index));
 
         // Render the line with isEditing = false to show styled content
-        const renderedContent = renderMarkdownLine(line, false, index);
+        const renderedContent = renderMarkdownLine(line, false, index, lines);
         lineDiv.innerHTML = renderedContent;
 
         // Make sure it's not marked as editing
@@ -956,7 +962,7 @@ initialLines.forEach((line: string, index: number) => {
   lineDiv.className = "editor-line";
   lineDiv.setAttribute("data-raw", line);
   lineDiv.setAttribute("data-line", String(index));
-  lineDiv.innerHTML = renderMarkdownLine(line, false, index);
+  lineDiv.innerHTML = renderMarkdownLine(line, false, index, initialLines);
   lineDiv.classList.remove("editing");
   editor.appendChild(lineDiv);
 });
