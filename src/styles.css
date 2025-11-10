@@ -263,6 +263,17 @@ code {
   overflow-x: auto;
 }
 
+/* Code block styling when editing (uses span instead of code element) */
+.code-block-line-editing {
+  display: block;
+  color: var(--code-color);
+  font-family: "Consolas", "Monaco", "Courier New", monospace;
+  font-size: 0.9em;
+  line-height: 1.5;
+  white-space: pre;
+  overflow-x: auto;
+}
+
 /* Math blocks */
 .math-block-start,
 .math-block-end {

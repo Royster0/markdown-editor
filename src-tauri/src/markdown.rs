@@ -181,11 +181,20 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
     }
 
     if in_block {
-        // Inside code block - show as escaped code
-        return LineRenderResult {
-            html: format!("<code class=\"code-block-line\">{}</code>", escape_html(line)),
-            is_code_block_boundary: false,
-        };
+        // Inside code block
+        if is_editing {
+            // When editing, show raw code with a span for styling (not <code> to prevent corruption)
+            return LineRenderResult {
+                html: format!("<span class=\"code-block-line-editing\">{}</span>", escape_html(line)),
+                is_code_block_boundary: false,
+            };
+        } else {
+            // When not editing, wrap in code tag for styling
+            return LineRenderResult {
+                html: format!("<code class=\"code-block-line\">{}</code>", escape_html(line)),
+                is_code_block_boundary: false,
+            };
+        }
     }
 
     // Check if this line is part of a math block
