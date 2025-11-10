@@ -83,42 +83,24 @@ function renderMarkdownLine(line: string, isEditing: boolean): string {
     return "<br>";
   }
 
-  // Headers - check BEFORE processing LaTeX to avoid interference
+  // Horizontal rule - check early before other patterns
+  if (line.match(/^(---+|\*\*\*+|___+)$/)) {
+    return '<span class="hr">───────────────────────────────────────</span>';
+  }
+
+  // Headers - identify structure first, then process content
   if (line.match(/^(#{1,6})\s+(.+)$/)) {
     const match = line.match(/^(#{1,6})\s+(.+)$/);
     if (match) {
       const level = match[1].length;
       const text = match[2];
-      // Process LaTeX and inline markdown in the header text
-      const processedText = renderLatex(renderInlineMarkdown(text));
+      // Process inline markdown (which now includes LaTeX) on header text
+      const processedText = renderInlineMarkdown(text);
       return `<span class="heading h${level}">${processedText}</span>`;
     }
   }
 
-  // Process LaTeX for non-headers
-  line = renderLatex(line);
-
-  // Bold + Italic
-  line = line.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>");
-
-  // Bold
-  line = line.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
-  line = line.replace(/__(.+?)__/g, "<strong>$1</strong>");
-
-  // Italic
-  line = line.replace(/\*(.+?)\*/g, "<em>$1</em>");
-  line = line.replace(/_(.+?)_/g, "<em>$1</em>");
-
-  // Strikethrough
-  line = line.replace(/~~(.+?)~~/g, "<del>$1</del>");
-
-  // Inline code
-  line = line.replace(/`([^`]+)`/g, "<code>$1</code>");
-
-  // Links
-  line = line.replace(/\[([^\]]+)\]\(([^\)]+)\)/g, '<a href="$2">$1</a>');
-
-  // List items
+  // List items - identify structure first, then process content
   if (line.match(/^(\s*)([-*+]|\d+\.)\s+(.+)$/)) {
     const match = line.match(/^(\s*)([-*+]|\d+\.)\s+(.+)$/);
     if (match) {
@@ -135,7 +117,7 @@ function renderMarkdownLine(line: string, isEditing: boolean): string {
     }
   }
 
-  // Blockquote
+  // Blockquote - identify structure first, then process content
   if (line.match(/^>\s*(.+)$/)) {
     const match = line.match(/^>\s*(.+)$/);
     if (match) {
@@ -145,16 +127,15 @@ function renderMarkdownLine(line: string, isEditing: boolean): string {
     }
   }
 
-  // Horizontal rule
-  if (line.match(/^(---+|\*\*\*+|___+)$/)) {
-    return '<span class="hr">───────────────────────────────────────</span>';
-  }
-
-  return line || "<br>";
+  // For regular paragraphs, process inline markdown (includes LaTeX)
+  return renderInlineMarkdown(line) || "<br>";
 }
 
-// Render inline markdown (for parts of lines)
+// Render inline markdown (for parts of lines) including LaTeX
 function renderInlineMarkdown(text: string): string {
+  // Process LaTeX first
+  text = renderLatex(text);
+
   // Bold + Italic
   text = text.replace(/\*\*\*(.+?)\*\*\*/g, "<strong><em>$1</em></strong>");
 
@@ -531,6 +512,131 @@ editor.addEventListener("keydown", (e) => {
     state.content = getEditorContent();
     updateStatistics(state.content);
     markDirty();
+  }
+
+  // Handle Backspace - merge with previous line if at start
+  if (e.key === "Backspace") {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const currentLineNum = getCurrentLineNumber();
+    const currentLine = editor.childNodes[currentLineNum] as HTMLElement;
+
+    if (!currentLine || currentLineNum === 0) return;
+
+    // Check if cursor is at the start of the line
+    const preRange = range.cloneRange();
+    preRange.selectNodeContents(currentLine);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    const cursorPos = preRange.toString().length;
+
+    if (cursorPos === 0 && range.collapsed) {
+      // At the start of the line - merge with previous line
+      e.preventDefault();
+
+      const prevLine = editor.childNodes[currentLineNum - 1] as HTMLElement;
+      if (!prevLine) return;
+
+      const prevText = prevLine.getAttribute("data-raw") || "";
+      const currentText = currentLine.getAttribute("data-raw") || "";
+      const mergePoint = prevText.length;
+      const mergedText = prevText + currentText;
+
+      // Update previous line with merged text
+      prevLine.setAttribute("data-raw", mergedText);
+      prevLine.innerHTML = renderMarkdownLine(mergedText, true);
+      prevLine.classList.add("editing");
+
+      // Remove current line
+      editor.removeChild(currentLine);
+
+      // Update line numbers for subsequent lines
+      for (let i = currentLineNum; i < editor.childNodes.length; i++) {
+        const line = editor.childNodes[i] as HTMLElement;
+        line.setAttribute("data-line", String(i));
+      }
+
+      // Move cursor to merge point in previous line
+      const textNode = prevLine.firstChild;
+      if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+        const newRange = document.createRange();
+        const newSelection = window.getSelection();
+        const offset = Math.min(mergePoint, textNode.textContent?.length || 0);
+        newRange.setStart(textNode, offset);
+        newRange.collapse(true);
+        newSelection?.removeAllRanges();
+        newSelection?.addRange(newRange);
+      }
+
+      // Update state
+      state.currentLine = currentLineNum - 1;
+      state.content = getEditorContent();
+      updateStatistics(state.content);
+      markDirty();
+    }
+  }
+
+  // Handle Delete - merge with next line if at end
+  if (e.key === "Delete") {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
+
+    const range = selection.getRangeAt(0);
+    const currentLineNum = getCurrentLineNumber();
+    const currentLine = editor.childNodes[currentLineNum] as HTMLElement;
+
+    if (!currentLine) return;
+
+    // Check if cursor is at the end of the line
+    const currentText = currentLine.textContent || "";
+    const preRange = range.cloneRange();
+    preRange.selectNodeContents(currentLine);
+    preRange.setEnd(range.startContainer, range.startOffset);
+    const cursorPos = preRange.toString().length;
+
+    if (cursorPos === currentText.length && range.collapsed) {
+      // At the end of the line - merge with next line
+      const nextLine = editor.childNodes[currentLineNum + 1] as HTMLElement;
+      if (!nextLine) return;
+
+      e.preventDefault();
+
+      const currentRawText = currentLine.getAttribute("data-raw") || "";
+      const nextText = nextLine.getAttribute("data-raw") || "";
+      const mergedText = currentRawText + nextText;
+
+      // Update current line with merged text
+      currentLine.setAttribute("data-raw", mergedText);
+      currentLine.innerHTML = renderMarkdownLine(mergedText, true);
+      currentLine.classList.add("editing");
+
+      // Remove next line
+      editor.removeChild(nextLine);
+
+      // Update line numbers for subsequent lines
+      for (let i = currentLineNum + 1; i < editor.childNodes.length; i++) {
+        const line = editor.childNodes[i] as HTMLElement;
+        line.setAttribute("data-line", String(i));
+      }
+
+      // Keep cursor at same position
+      const textNode = currentLine.firstChild;
+      if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+        const newRange = document.createRange();
+        const newSelection = window.getSelection();
+        const offset = Math.min(cursorPos, textNode.textContent?.length || 0);
+        newRange.setStart(textNode, offset);
+        newRange.collapse(true);
+        newSelection?.removeAllRanges();
+        newSelection?.addRange(newRange);
+      }
+
+      // Update state
+      state.content = getEditorContent();
+      updateStatistics(state.content);
+      markDirty();
+    }
   }
 
   // Handle Tab key
