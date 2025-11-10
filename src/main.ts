@@ -457,14 +457,18 @@ async function handleCursorChange() {
     if (oldLine !== null && oldLine < editor.childNodes.length) {
       const oldLineDiv = editor.childNodes[oldLine] as HTMLElement;
       if (oldLineDiv) {
-        // IMPORTANT: Update data-raw with the current text content before re-rendering
-        // This ensures any edits made to the line are preserved
-        const currentText = oldLineDiv.textContent || "";
-        oldLineDiv.setAttribute("data-raw", currentText);
-        // Update allLines to reflect the change
-        allLines[oldLine] = currentText;
+        // Only update data-raw if the line was actually being edited
+        // This prevents corrupting data-raw when clicking through non-edited lines
+        // (e.g., math blocks would have rendered KaTeX as textContent, not original LaTeX)
+        if (oldLineDiv.classList.contains("editing")) {
+          const currentText = oldLineDiv.textContent || "";
+          oldLineDiv.setAttribute("data-raw", currentText);
+          // Update allLines to reflect the change
+          allLines[oldLine] = currentText;
+        }
 
-        const html = await renderMarkdownLine(currentText, false, oldLine, allLines);
+        const rawText = oldLineDiv.getAttribute("data-raw") || "";
+        const html = await renderMarkdownLine(rawText, false, oldLine, allLines);
         oldLineDiv.innerHTML = html;
         oldLineDiv.classList.remove("editing");
       }

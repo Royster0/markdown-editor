@@ -222,12 +222,21 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
     }
 
     if in_math_block {
-        // Inside math block - wrap in a span with class for LaTeX rendering
-        // The frontend KaTeX will process this
-        return LineRenderResult {
-            html: format!("<span class=\"math-block-line\">{}</span>", escape_html(line)),
-            is_code_block_boundary: false,
-        };
+        // Inside math block
+        if is_editing {
+            // When editing, show raw LaTeX without rendering
+            return LineRenderResult {
+                html: escape_html(line),
+                is_code_block_boundary: false,
+            };
+        } else {
+            // When not editing, wrap in a span with class for LaTeX rendering
+            // The frontend KaTeX will process this
+            return LineRenderResult {
+                html: format!("<span class=\"math-block-line\">{}</span>", escape_html(line)),
+                is_code_block_boundary: false,
+            };
+        }
     }
 
     // Empty line
@@ -281,31 +290,42 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
     // List items
     let list_re = Regex::new(r"^(\s*)([-*+]|\d+\.)\s+(.+)$").unwrap();
     if let Some(cap) = list_re.captures(line) {
-        let indent = cap.get(1).unwrap().as_str().len();
+        let indent_spaces = cap.get(1).unwrap().as_str();
+        let indent = indent_spaces.len();
         let marker = cap.get(2).unwrap().as_str();
         let text = cap.get(3).unwrap().as_str();
         let is_ordered = marker.chars().next().unwrap().is_numeric();
         let marker_class = if is_ordered { "ordered" } else { "unordered" };
 
-        let processed_text = if is_editing {
-            render_inline_markdown_with_markers(text)
+        if is_editing {
+            // In editing mode, show the full markdown including indentation
+            let processed_text = render_inline_markdown_with_markers(text);
+            return LineRenderResult {
+                html: format!(
+                    "<span class=\"list-item\">{}{} {}</span>",
+                    indent_spaces,
+                    marker,
+                    processed_text
+                ),
+                is_code_block_boundary: false,
+            };
         } else {
-            render_inline_markdown(text)
-        };
-
-        return LineRenderResult {
-            html: format!(
-                "<span class=\"list-item\" style=\"padding-left: {}px\">\
-                <span class=\"list-marker {}\">{}</span> \
-                {}\
-                </span>",
-                indent * 20,
-                marker_class,
-                marker,
-                processed_text
-            ),
-            is_code_block_boundary: false,
-        };
+            // In non-editing mode, use CSS for indentation
+            let processed_text = render_inline_markdown(text);
+            return LineRenderResult {
+                html: format!(
+                    "<span class=\"list-item\" style=\"padding-left: {}px\">\
+                    <span class=\"list-marker {}\">{}</span> \
+                    {}\
+                    </span>",
+                    indent * 20,
+                    marker_class,
+                    marker,
+                    processed_text
+                ),
+                is_code_block_boundary: false,
+            };
+        }
     }
 
     // Blockquote

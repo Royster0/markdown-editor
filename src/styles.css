@@ -304,6 +304,10 @@ a:hover {
   margin: 0.3em 0;
 }
 
+.editing .list-item {
+  white-space: pre; /* Preserve leading spaces in editing mode */
+}
+
 .list-marker {
   display: inline-block;
   min-width: 2em;
