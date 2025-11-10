@@ -1,5 +1,21 @@
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+use once_cell::sync::Lazy;
+
+// Pre-compiled regex patterns for better performance
+static BOLD_ITALIC_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\*\*\*(.+?)\*\*\*").unwrap());
+static BOLD_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\*\*(.+?)\*\*").unwrap());
+static BOLD_UNDERSCORE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"__(.+?)__").unwrap());
+static ITALIC_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\*(.+?)\*").unwrap());
+static ITALIC_UNDERSCORE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"_(.+?)_").unwrap());
+static STRIKE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"~~(.+?)~~").unwrap());
+static CODE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"`([^`]+)`").unwrap());
+static LINK_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"\[([^\]]+)\]\(([^\)]+)\)").unwrap());
+static LANG_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^```(\w+)?").unwrap());
+static HR_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(---+|\*\*\*+|___+)$").unwrap());
+static HEADER_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(#{1,6})\s+(.+)$").unwrap());
+static LIST_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^(\s*)([-*+]|\d+\.)\s+(.+)$").unwrap());
+static BLOCKQUOTE_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"^>\s*(.+)$").unwrap());
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LineRenderResult {
@@ -68,32 +84,24 @@ fn render_inline_markdown(text: &str) -> String {
     let mut result = text.to_string();
 
     // Bold + Italic (must come before individual bold/italic)
-    let bold_italic_re = Regex::new(r"\*\*\*(.+?)\*\*\*").unwrap();
-    result = bold_italic_re.replace_all(&result, "<strong><em>$1</em></strong>").to_string();
+    result = BOLD_ITALIC_RE.replace_all(&result, "<strong><em>$1</em></strong>").to_string();
 
     // Bold
-    let bold_re = Regex::new(r"\*\*(.+?)\*\*").unwrap();
-    result = bold_re.replace_all(&result, "<strong>$1</strong>").to_string();
-    let bold_underscore_re = Regex::new(r"__(.+?)__").unwrap();
-    result = bold_underscore_re.replace_all(&result, "<strong>$1</strong>").to_string();
+    result = BOLD_RE.replace_all(&result, "<strong>$1</strong>").to_string();
+    result = BOLD_UNDERSCORE_RE.replace_all(&result, "<strong>$1</strong>").to_string();
 
     // Italic
-    let italic_re = Regex::new(r"\*(.+?)\*").unwrap();
-    result = italic_re.replace_all(&result, "<em>$1</em>").to_string();
-    let italic_underscore_re = Regex::new(r"_(.+?)_").unwrap();
-    result = italic_underscore_re.replace_all(&result, "<em>$1</em>").to_string();
+    result = ITALIC_RE.replace_all(&result, "<em>$1</em>").to_string();
+    result = ITALIC_UNDERSCORE_RE.replace_all(&result, "<em>$1</em>").to_string();
 
     // Strikethrough
-    let strike_re = Regex::new(r"~~(.+?)~~").unwrap();
-    result = strike_re.replace_all(&result, "<del>$1</del>").to_string();
+    result = STRIKE_RE.replace_all(&result, "<del>$1</del>").to_string();
 
     // Inline code
-    let code_re = Regex::new(r"`([^`]+)`").unwrap();
-    result = code_re.replace_all(&result, "<code>$1</code>").to_string();
+    result = CODE_RE.replace_all(&result, "<code>$1</code>").to_string();
 
     // Links
-    let link_re = Regex::new(r"\[([^\]]+)\]\(([^\)]+)\)").unwrap();
-    result = link_re.replace_all(&result, "<a href=\"$2\">$1</a>").to_string();
+    result = LINK_RE.replace_all(&result, "<a href=\"$2\">$1</a>").to_string();
 
     result
 }
@@ -103,32 +111,24 @@ fn render_inline_markdown_with_markers(text: &str) -> String {
     let mut result = text.to_string();
 
     // Bold + Italic (must come before individual bold/italic)
-    let bold_italic_re = Regex::new(r"\*\*\*(.+?)\*\*\*").unwrap();
-    result = bold_italic_re.replace_all(&result, "<strong><em>***$1***</em></strong>").to_string();
+    result = BOLD_ITALIC_RE.replace_all(&result, "<strong><em>***$1***</em></strong>").to_string();
 
     // Bold
-    let bold_re = Regex::new(r"\*\*(.+?)\*\*").unwrap();
-    result = bold_re.replace_all(&result, "<strong>**$1**</strong>").to_string();
-    let bold_underscore_re = Regex::new(r"__(.+?)__").unwrap();
-    result = bold_underscore_re.replace_all(&result, "<strong>__$1__</strong>").to_string();
+    result = BOLD_RE.replace_all(&result, "<strong>**$1**</strong>").to_string();
+    result = BOLD_UNDERSCORE_RE.replace_all(&result, "<strong>__$1__</strong>").to_string();
 
     // Italic
-    let italic_re = Regex::new(r"\*(.+?)\*").unwrap();
-    result = italic_re.replace_all(&result, "<em>*$1*</em>").to_string();
-    let italic_underscore_re = Regex::new(r"_(.+?)_").unwrap();
-    result = italic_underscore_re.replace_all(&result, "<em>_$1_</em>").to_string();
+    result = ITALIC_RE.replace_all(&result, "<em>*$1*</em>").to_string();
+    result = ITALIC_UNDERSCORE_RE.replace_all(&result, "<em>_$1_</em>").to_string();
 
     // Strikethrough
-    let strike_re = Regex::new(r"~~(.+?)~~").unwrap();
-    result = strike_re.replace_all(&result, "<del>~~$1~~</del>").to_string();
+    result = STRIKE_RE.replace_all(&result, "<del>~~$1~~</del>").to_string();
 
     // Inline code
-    let code_re = Regex::new(r"`([^`]+)`").unwrap();
-    result = code_re.replace_all(&result, "<code>`$1`</code>").to_string();
+    result = CODE_RE.replace_all(&result, "<code>`$1`</code>").to_string();
 
     // Links
-    let link_re = Regex::new(r"\[([^\]]+)\]\(([^\)]+)\)").unwrap();
-    result = link_re.replace_all(&result, "<a href=\"$2\">[$1]($2)</a>").to_string();
+    result = LINK_RE.replace_all(&result, "<a href=\"$2\">[$1]($2)</a>").to_string();
 
     result
 }
@@ -145,8 +145,7 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
 
     if is_start {
         // Starting ``` line - extract language if present
-        let lang_re = Regex::new(r"^```(\w+)?").unwrap();
-        let lang = lang_re.captures(line.trim())
+        let lang = LANG_RE.captures(line.trim())
             .and_then(|cap| cap.get(1))
             .map(|m| m.as_str())
             .unwrap_or("");
@@ -257,8 +256,7 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
     }
 
     // Horizontal rule
-    let hr_re = Regex::new(r"^(---+|\*\*\*+|___+)$").unwrap();
-    if hr_re.is_match(line) {
+    if HR_RE.is_match(line) {
         if is_editing {
             return LineRenderResult {
                 html: format!("<span class=\"hr\">{}</span>", escape_html(line)),
@@ -273,8 +271,7 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
     }
 
     // Headers
-    let header_re = Regex::new(r"^(#{1,6})\s+(.+)$").unwrap();
-    if let Some(cap) = header_re.captures(line) {
+    if let Some(cap) = HEADER_RE.captures(line) {
         let level = cap.get(1).unwrap().as_str().len();
         let hashes = cap.get(1).unwrap().as_str();
         let text = cap.get(2).unwrap().as_str();
@@ -297,8 +294,7 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
     }
 
     // List items
-    let list_re = Regex::new(r"^(\s*)([-*+]|\d+\.)\s+(.+)$").unwrap();
-    if let Some(cap) = list_re.captures(line) {
+    if let Some(cap) = LIST_RE.captures(line) {
         let indent_spaces = cap.get(1).unwrap().as_str();
         let indent = indent_spaces.len();
         let marker = cap.get(2).unwrap().as_str();
@@ -338,8 +334,7 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
     }
 
     // Blockquote
-    let blockquote_re = Regex::new(r"^>\s*(.+)$").unwrap();
-    if let Some(cap) = blockquote_re.captures(line) {
+    if let Some(cap) = BLOCKQUOTE_RE.captures(line) {
         let text = cap.get(1).unwrap().as_str();
 
         if is_editing {
