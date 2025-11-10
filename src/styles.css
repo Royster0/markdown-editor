@@ -155,7 +155,7 @@ body {
 }
 
 .heading.h1 {
-  font-size: 2em;
+  font-size: 2.5em;
   color: var(--h1-color);
   border-bottom: 2px solid var(--border-color);
   padding-bottom: 0.3em;
@@ -165,8 +165,10 @@ body {
 }
 
 .heading.h2 {
-  font-size: 1.5em;
+  font-size: 2em;
   color: var(--h2-color);
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 0.3em;
   margin-top: 0.7em;
   margin-bottom: 0.4em;
   font-weight: 700;
@@ -231,27 +233,6 @@ code {
   font-family: "Consolas", "Monaco", "Courier New", monospace;
   font-size: 0.9em;
   border: 1px solid var(--border-color);
-}
-
-/* Code blocks */
-.code-block-start,
-.code-block-end {
-  display: none; /* Hide the ``` markers */
-}
-
-.code-block-line {
-  display: block;
-  background-color: var(--code-bg);
-  color: var(--code-color);
-  padding: 0;
-  margin: 0;
-  border: none;
-  border-radius: 0;
-  font-family: "Consolas", "Monaco", "Courier New", monospace;
-  font-size: 0.9em;
-  line-height: 1.5;
-  white-space: pre;
-  overflow-x: auto;
 }
 
 a {

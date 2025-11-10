@@ -71,56 +71,11 @@ function renderLatex(text: string): string {
   return text;
 }
 
-// Check if a line index is inside a code block
-function isInCodeBlock(lineIndex: number): { inBlock: boolean; isStart: boolean; isEnd: boolean } {
-  const allLines: string[] = [];
-  for (let i = 0; i < editor.childNodes.length; i++) {
-    const lineDiv = editor.childNodes[i] as HTMLElement;
-    allLines.push(lineDiv.getAttribute("data-raw") || "");
-  }
-
-  let inBlock = false;
-  for (let i = 0; i <= lineIndex; i++) {
-    const line = allLines[i];
-    if (line.trim().startsWith("```")) {
-      if (i === lineIndex) {
-        // This line is a code block boundary
-        return { inBlock: true, isStart: !inBlock, isEnd: inBlock };
-      }
-      inBlock = !inBlock;
-    }
-  }
-
-  return { inBlock, isStart: false, isEnd: false };
-}
-
 // Convert markdown line to HTML with styling
-function renderMarkdownLine(line: string, isEditing: boolean, lineIndex?: number): string {
+function renderMarkdownLine(line: string, isEditing: boolean): string {
   if (isEditing) {
     // Show raw markdown when editing
     return escapeHtml(line);
-  }
-
-  // Check if this line is part of a code block
-  if (lineIndex !== undefined) {
-    const codeBlockInfo = isInCodeBlock(lineIndex);
-
-    if (codeBlockInfo.isStart) {
-      // Starting ``` line - extract language if present
-      const langMatch = line.trim().match(/^```(\w+)?/);
-      const lang = langMatch && langMatch[1] ? langMatch[1] : '';
-      return `<span class="code-block-start" data-lang="${lang}"></span>`;
-    }
-
-    if (codeBlockInfo.isEnd) {
-      // Ending ``` line
-      return '<span class="code-block-end"></span>';
-    }
-
-    if (codeBlockInfo.inBlock) {
-      // Inside code block - show as escaped code
-      return `<code class="code-block-line">${escapeHtml(line)}</code>`;
-    }
   }
 
   // Empty line
@@ -258,7 +213,7 @@ function setEditorContent(text: string) {
     lineDiv.className = "editor-line";
     lineDiv.setAttribute("data-raw", line);
     lineDiv.setAttribute("data-line", String(index));
-    lineDiv.innerHTML = renderMarkdownLine(line, false, index);
+    lineDiv.innerHTML = renderMarkdownLine(line, false);
     editor.appendChild(lineDiv);
   });
 }
@@ -278,7 +233,7 @@ function renderAllLines() {
     const lineDiv = editor.childNodes[i] as HTMLElement;
     const rawText = lineDiv.getAttribute("data-raw") || "";
     const isCurrentLine = i === state.currentLine && state.editMode;
-    lineDiv.innerHTML = renderMarkdownLine(rawText, isCurrentLine, i);
+    lineDiv.innerHTML = renderMarkdownLine(rawText, isCurrentLine);
 
     if (isCurrentLine) {
       lineDiv.classList.add("editing");
@@ -440,7 +395,7 @@ function handleCursorChange() {
         // This ensures any edits made to the line are preserved
         const currentText = oldLineDiv.textContent || "";
         oldLineDiv.setAttribute("data-raw", currentText);
-        oldLineDiv.innerHTML = renderMarkdownLine(currentText, false, oldLine);
+        oldLineDiv.innerHTML = renderMarkdownLine(currentText, false);
         oldLineDiv.classList.remove("editing");
       }
     }
@@ -462,7 +417,7 @@ function handleCursorChange() {
       }
 
       // Update the line to show raw markdown
-      currentLineDiv.innerHTML = renderMarkdownLine(rawText, true, lineNum);
+      currentLineDiv.innerHTML = renderMarkdownLine(rawText, true);
       currentLineDiv.classList.add("editing");
 
       // Restore cursor position
@@ -516,12 +471,16 @@ editor.addEventListener("keydown", (e) => {
 
     // Update current line with text before cursor
     currentLine.setAttribute("data-raw", beforeCursor);
+    currentLine.innerHTML = renderMarkdownLine(beforeCursor, false);
+    currentLine.classList.remove("editing");
 
     // Create new line with text after cursor
     const newLine = document.createElement("div");
     newLine.className = "editor-line";
     newLine.setAttribute("data-raw", afterCursor);
     newLine.setAttribute("data-line", String(currentLineNum + 1));
+    newLine.innerHTML = afterCursor || "<br>";
+    newLine.classList.add("editing");
 
     // Insert after current line
     if (currentLine.nextSibling) {
@@ -534,19 +493,6 @@ editor.addEventListener("keydown", (e) => {
     for (let i = currentLineNum + 2; i < editor.childNodes.length; i++) {
       const line = editor.childNodes[i] as HTMLElement;
       line.setAttribute("data-line", String(i));
-    }
-
-    // Re-render affected lines (from current line onwards)
-    for (let i = currentLineNum; i < editor.childNodes.length; i++) {
-      const lineDiv = editor.childNodes[i] as HTMLElement;
-      const rawText = lineDiv.getAttribute("data-raw") || "";
-      const isEditing = i === currentLineNum + 1; // New line is in edit mode
-      lineDiv.innerHTML = renderMarkdownLine(rawText, isEditing, i);
-      if (isEditing) {
-        lineDiv.classList.add("editing");
-      } else {
-        lineDiv.classList.remove("editing");
-      }
     }
 
     // Move cursor to beginning of new line
@@ -600,6 +546,8 @@ editor.addEventListener("keydown", (e) => {
 
       // Update previous line with merged text
       prevLine.setAttribute("data-raw", mergedText);
+      prevLine.innerHTML = renderMarkdownLine(mergedText, true);
+      prevLine.classList.add("editing");
 
       // Remove current line
       editor.removeChild(currentLine);
@@ -608,19 +556,6 @@ editor.addEventListener("keydown", (e) => {
       for (let i = currentLineNum; i < editor.childNodes.length; i++) {
         const line = editor.childNodes[i] as HTMLElement;
         line.setAttribute("data-line", String(i));
-      }
-
-      // Re-render affected lines (from previous line onwards)
-      for (let i = currentLineNum - 1; i < editor.childNodes.length; i++) {
-        const lineDiv = editor.childNodes[i] as HTMLElement;
-        const rawText = lineDiv.getAttribute("data-raw") || "";
-        const isEditing = i === currentLineNum - 1; // Previous line (now merged) is in edit mode
-        lineDiv.innerHTML = renderMarkdownLine(rawText, isEditing, i);
-        if (isEditing) {
-          lineDiv.classList.add("editing");
-        } else {
-          lineDiv.classList.remove("editing");
-        }
       }
 
       // Move cursor to merge point in previous line
@@ -674,6 +609,8 @@ editor.addEventListener("keydown", (e) => {
 
       // Update current line with merged text
       currentLine.setAttribute("data-raw", mergedText);
+      currentLine.innerHTML = renderMarkdownLine(mergedText, true);
+      currentLine.classList.add("editing");
 
       // Remove next line
       editor.removeChild(nextLine);
@@ -682,19 +619,6 @@ editor.addEventListener("keydown", (e) => {
       for (let i = currentLineNum + 1; i < editor.childNodes.length; i++) {
         const line = editor.childNodes[i] as HTMLElement;
         line.setAttribute("data-line", String(i));
-      }
-
-      // Re-render affected lines (from current line onwards)
-      for (let i = currentLineNum; i < editor.childNodes.length; i++) {
-        const lineDiv = editor.childNodes[i] as HTMLElement;
-        const rawText = lineDiv.getAttribute("data-raw") || "";
-        const isEditing = i === currentLineNum; // Current line (now merged) is in edit mode
-        lineDiv.innerHTML = renderMarkdownLine(rawText, isEditing, i);
-        if (isEditing) {
-          lineDiv.classList.add("editing");
-        } else {
-          lineDiv.classList.remove("editing");
-        }
       }
 
       // Keep cursor at same position
@@ -849,7 +773,7 @@ document.getElementById("open-file")?.addEventListener("click", async () => {
         lineDiv.setAttribute("data-line", String(index));
 
         // Render the line with isEditing = false to show styled content
-        const renderedContent = renderMarkdownLine(line, false, index);
+        const renderedContent = renderMarkdownLine(line, false);
         lineDiv.innerHTML = renderedContent;
 
         // Make sure it's not marked as editing
@@ -956,7 +880,7 @@ initialLines.forEach((line: string, index: number) => {
   lineDiv.className = "editor-line";
   lineDiv.setAttribute("data-raw", line);
   lineDiv.setAttribute("data-line", String(index));
-  lineDiv.innerHTML = renderMarkdownLine(line, false, index);
+  lineDiv.innerHTML = renderMarkdownLine(line, false);
   lineDiv.classList.remove("editing");
   editor.appendChild(lineDiv);
 });
