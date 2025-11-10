@@ -280,13 +280,83 @@ async function renderAllLines() {
 // }
 
 // Handle input
-editor.addEventListener("input", () => {
+editor.addEventListener("input", async () => {
   const currentLineNum = getCurrentLineNumber();
   const lineDiv = editor.childNodes[currentLineNum] as HTMLElement;
 
   if (lineDiv) {
     const rawText = lineDiv.textContent || "";
     lineDiv.setAttribute("data-raw", rawText);
+
+    // Save cursor position before re-rendering
+    const selection = window.getSelection();
+    let cursorOffset = 0;
+    if (selection && selection.rangeCount > 0) {
+      const range = selection.getRangeAt(0);
+      const preCaretRange = range.cloneRange();
+      preCaretRange.selectNodeContents(lineDiv);
+      preCaretRange.setEnd(range.endContainer, range.endOffset);
+      cursorOffset = preCaretRange.toString().length;
+    }
+
+    // Re-render the line with editing mode to update styling dynamically
+    const allLines = getAllLines();
+    const html = await renderMarkdownLine(rawText, true, currentLineNum, allLines);
+    lineDiv.innerHTML = html;
+
+    // Restore cursor position
+    try {
+      const textNode = lineDiv.firstChild;
+      if (textNode && textNode.nodeType === Node.TEXT_NODE) {
+        const newRange = document.createRange();
+        const newSelection = window.getSelection();
+        const offset = Math.min(cursorOffset, textNode.textContent?.length || 0);
+        newRange.setStart(textNode, offset);
+        newRange.collapse(true);
+        newSelection?.removeAllRanges();
+        newSelection?.addRange(newRange);
+      } else if (lineDiv.childNodes.length > 0) {
+        // Handle complex nodes (like spans for headings)
+        const newRange = document.createRange();
+        const newSelection = window.getSelection();
+
+        // Try to find the right text node and position
+        let currentOffset = 0;
+        let targetNode: Node | null = null;
+        let targetOffset = 0;
+
+        const findTextNode = (node: Node): boolean => {
+          if (node.nodeType === Node.TEXT_NODE) {
+            const textLength = node.textContent?.length || 0;
+            if (currentOffset + textLength >= cursorOffset) {
+              targetNode = node;
+              targetOffset = cursorOffset - currentOffset;
+              return true;
+            }
+            currentOffset += textLength;
+          } else {
+            for (let i = 0; i < node.childNodes.length; i++) {
+              if (findTextNode(node.childNodes[i])) {
+                return true;
+              }
+            }
+          }
+          return false;
+        };
+
+        findTextNode(lineDiv);
+
+        if (targetNode) {
+          newRange.setStart(targetNode, targetOffset);
+          newRange.collapse(true);
+          newSelection?.removeAllRanges();
+          newSelection?.addRange(newRange);
+        }
+      }
+    } catch (e) {
+      // Cursor restoration failed, cursor will be at start
+      console.warn("Failed to restore cursor position:", e);
+    }
   }
 
   state.content = getEditorContent();
