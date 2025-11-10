@@ -7,6 +7,27 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { state } from "./state";
 import { KeybindAction } from "./types";
 import { switchTheme, importTheme, populateThemeSelector } from "./theme";
+import {
+  selectAll,
+  undo,
+  redo,
+  copy,
+  cut,
+  paste,
+  toggleBold,
+  toggleItalic,
+  toggleStrikethrough,
+  insertLink,
+  insertCode,
+  insertCodeBlock,
+  increaseHeadingLevel,
+  decreaseHeadingLevel,
+  openFind,
+  openReplace,
+  zoomIn,
+  zoomOut,
+  resetZoom
+} from "./formatting";
 
 // DOM element references
 const settingsModal = document.getElementById("settings-modal") as HTMLElement;
@@ -177,7 +198,7 @@ export const KEYBIND_ACTIONS: KeybindAction[] = [
     id: "toggle-sidebar",
     name: "Toggle Sidebar",
     description: "Show/hide sidebar",
-    defaultKey: "Ctrl+B",
+    defaultKey: "Ctrl+\\",
     category: "View"
   },
   {
@@ -608,11 +629,17 @@ function handleGlobalKeybind(e: KeyboardEvent): void {
 
   const currentKeybind = keys.join("+");
 
+  // Actions that should use native browser behavior
+  const nativeActions = ["find", "replace"];
+
   // Find matching action
   for (const action of KEYBIND_ACTIONS) {
     const actionKeybind = state.keybinds[action.id] || action.defaultKey;
     if (actionKeybind === currentKeybind) {
-      e.preventDefault();
+      // For native actions, don't prevent default to allow native browser behavior
+      if (!nativeActions.includes(action.id)) {
+        e.preventDefault();
+      }
       executeKeybindAction(action.id);
       break;
     }
@@ -624,6 +651,7 @@ function handleGlobalKeybind(e: KeyboardEvent): void {
  */
 async function executeKeybindAction(actionId: string): Promise<void> {
   switch (actionId) {
+    // File operations
     case "save-file":
       document.getElementById("file-menu-save-file")?.click();
       break;
@@ -636,15 +664,80 @@ async function executeKeybindAction(actionId: string): Promise<void> {
     case "open-folder":
       document.getElementById("file-menu-open-folder")?.click();
       break;
+
+    // Editing operations
     case "toggle-edit-mode":
       document.getElementById("edit-mode-toggle")?.click();
       break;
+    case "select-all":
+      selectAll();
+      break;
+    case "undo":
+      undo();
+      break;
+    case "redo":
+      redo();
+      break;
+    case "copy":
+      copy();
+      break;
+    case "cut":
+      cut();
+      break;
+    case "paste":
+      paste();
+      break;
+    case "find":
+      openFind();
+      break;
+    case "replace":
+      openReplace();
+      break;
+
+    // Formatting operations
+    case "bold":
+      toggleBold();
+      break;
+    case "italic":
+      toggleItalic();
+      break;
+    case "strikethrough":
+      toggleStrikethrough();
+      break;
+    case "insert-link":
+      insertLink();
+      break;
+    case "insert-code":
+      insertCode();
+      break;
+    case "insert-code-block":
+      insertCodeBlock();
+      break;
+    case "increase-heading":
+      increaseHeadingLevel();
+      break;
+    case "decrease-heading":
+      decreaseHeadingLevel();
+      break;
+
+    // View operations
     case "toggle-sidebar":
       document.getElementById("toggle-sidebar-titlebar")?.click();
       break;
     case "toggle-status-bar":
       await toggleStatusBar();
       break;
+    case "zoom-in":
+      zoomIn();
+      break;
+    case "zoom-out":
+      zoomOut();
+      break;
+    case "reset-zoom":
+      resetZoom();
+      break;
+
+    // Window operations
     case "settings":
       openSettings();
       break;
@@ -657,8 +750,7 @@ async function executeKeybindAction(actionId: string): Promise<void> {
     case "maximize-window":
       document.getElementById("window-maximize")?.click();
       break;
-    // Note: Other actions like bold, italic, etc. would need to be implemented
-    // in the editor module. For now, they're defined but not fully functional.
+
     default:
       console.log(`Action not implemented: ${actionId}`);
   }
