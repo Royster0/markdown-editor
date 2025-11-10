@@ -93,6 +93,13 @@ async function renderMarkdownLine(line: string, isEditing: boolean, lineIndex?: 
 
   try {
     const result = await invoke<LineRenderResult>("render_markdown", { request });
+
+    // Only render LaTeX when NOT editing to preserve the original $ markers
+    // This prevents corruption when clicking into or navigating through LaTeX equations
+    if (isEditing) {
+      return result.html;
+    }
+
     // Post-process the HTML to add LaTeX rendering
     return renderLatexInHtml(result.html);
   } catch (error) {
@@ -106,10 +113,10 @@ async function renderMarkdownLine(line: string, isEditing: boolean, lineIndex?: 
 async function renderMarkdownBatch(requests: RenderRequest[]): Promise<LineRenderResult[]> {
   try {
     const results = await invoke<LineRenderResult[]>("render_markdown_batch", { requests });
-    // Post-process all results to add LaTeX rendering
-    return results.map((result: LineRenderResult) => ({
+    // Post-process all results to add LaTeX rendering (only for non-editing lines)
+    return results.map((result: LineRenderResult, index: number) => ({
       ...result,
-      html: renderLatexInHtml(result.html)
+      html: requests[index].is_editing ? result.html : renderLatexInHtml(result.html)
     }));
   } catch (error) {
     console.error("Error batch rendering markdown:", error);
