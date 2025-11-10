@@ -89,20 +89,112 @@ export async function refreshFileTree() {
 export async function refreshAndRevealFile(filePath: string) {
   await refreshFileTree();
 
-  // Try to find and expand parent folders to show the file
-  // This is a simple implementation that works for root-level files
-  // For nested files, we'd need more complex logic
-  if (state.currentFolder) {
-    // Get all tree items
-    const treeItems = fileTree.querySelectorAll(".tree-item");
-    treeItems.forEach((item) => {
-      const itemPath = item.getAttribute("data-path");
-      if (itemPath === filePath) {
-        // Select and scroll to the item
-        item.classList.add("selected");
-        item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  if (!state.currentFolder) return;
+
+  // Try to expand parent folders and reveal the file
+  await expandAndRevealPath(filePath);
+}
+
+/**
+ * Expand parent folders and reveal a file/folder in the tree
+ * @param targetPath - Path to the file or folder to reveal
+ */
+async function expandAndRevealPath(targetPath: string) {
+  // Get the parent directory of the target
+  const separator = targetPath.includes("\\") ? "\\" : "/";
+  const parts = targetPath.split(separator);
+
+  // If it's at root level, just find and select it
+  if (parts.length <= (state.currentFolder?.split(separator).length || 0) + 1) {
+    selectTreeItem(targetPath);
+    return;
+  }
+
+  // Need to expand parent folders
+  // Start from the root and expand each level
+  let currentPath = state.currentFolder!;
+  const rootParts = currentPath.split(separator);
+  const targetParts = targetPath.split(separator);
+
+  // Find which folders need to be expanded
+  for (let i = rootParts.length; i < targetParts.length - 1; i++) {
+    currentPath = targetParts.slice(0, i + 1).join(separator);
+
+    // Find the folder in the tree
+    const folderItem = findTreeItemByPath(currentPath);
+    if (folderItem) {
+      const isDir = folderItem.getAttribute("data-is-dir") === "true";
+      if (isDir) {
+        // Find the children container
+        const container = folderItem.parentElement;
+        const childrenContainer = container?.querySelector(".tree-children");
+
+        if (childrenContainer && childrenContainer.classList.contains("collapsed")) {
+          // Expand this folder
+          const arrow = folderItem.querySelector(".tree-item-arrow");
+          childrenContainer.classList.remove("collapsed");
+          arrow?.classList.add("expanded");
+          expandedFolders.add(currentPath);
+
+          // Load children if not already loaded
+          if (childrenContainer.children.length === 0) {
+            try {
+              const children = await invoke<FileEntry[]>("read_directory", {
+                path: currentPath,
+              });
+
+              const level = i - rootParts.length + 1;
+              children.forEach((childEntry: FileEntry) => {
+                const childItem = createTreeItem(childEntry, level);
+                childrenContainer.appendChild(childItem);
+              });
+            } catch (error) {
+              console.error("Error loading folder contents:", error);
+              return;
+            }
+          }
+        }
       }
-    });
+    } else {
+      console.error("Could not find folder in tree:", currentPath);
+      return;
+    }
+  }
+
+  // Now select the target item
+  // Wait a bit for DOM to update
+  setTimeout(() => {
+    selectTreeItem(targetPath);
+  }, 100);
+}
+
+/**
+ * Find a tree item by its path
+ */
+function findTreeItemByPath(path: string): HTMLElement | null {
+  const treeItems = fileTree.querySelectorAll(".tree-item");
+  for (const item of Array.from(treeItems)) {
+    if (item.getAttribute("data-path") === path) {
+      return item as HTMLElement;
+    }
+  }
+  return null;
+}
+
+/**
+ * Select and scroll to a tree item
+ */
+function selectTreeItem(path: string) {
+  // Remove previous selection
+  document.querySelectorAll(".tree-item.selected")
+    .forEach((el) => el.classList.remove("selected"));
+
+  const item = findTreeItemByPath(path);
+  if (item) {
+    item.classList.add("selected");
+    item.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  } else {
+    console.warn("Could not find tree item to select:", path);
   }
 }
 

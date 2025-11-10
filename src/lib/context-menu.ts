@@ -179,16 +179,20 @@ async function createNewFile(parentPath: string | null, isMd: boolean = true) {
   const filePath = `${parentPath}${separator}${fullFileName}`;
 
   try {
+    console.log("Creating file:", filePath);
     await invoke("create_file", { path: filePath });
     console.log("File created successfully:", filePath);
 
     // Refresh the file tree and try to reveal the new file
+    console.log("Refreshing file tree and revealing file...");
     await refreshAndRevealFile(filePath);
 
     // Open the new file in the editor
+    console.log("Loading file content into editor...");
     await loadFileContent(filePath);
+    console.log("File loaded successfully in editor");
   } catch (error) {
-    console.error("Failed to create file:", error);
+    console.error("Failed to create/load file:", error);
     alert(`Failed to create file: ${error}`);
   }
 }
