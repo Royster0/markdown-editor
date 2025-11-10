@@ -318,10 +318,14 @@ async function deleteItem(itemPath: string, isDir: boolean) {
   if (isDir) {
     // Check folder contents
     try {
+      console.log("Checking folder contents for:", itemPath);
       const [fileCount, folderCount] = await invoke<[number, number]>(
         "count_folder_contents",
         { path: itemPath }
       );
+      console.log(`Folder contains ${fileCount} files and ${folderCount} folders`);
+
+      let confirmed = false;
 
       if (fileCount > 0 || folderCount > 0) {
         // Folder has contents, show detailed confirmation
@@ -333,36 +337,53 @@ async function deleteItem(itemPath: string, isDir: boolean) {
           itemsText.push(`${folderCount} folder${folderCount === 1 ? "" : "s"}`);
         }
 
-        const confirmed = confirm(
+        console.log("Showing confirmation dialog for non-empty folder");
+        confirmed = confirm(
           `Delete folder "${itemName}"?\n\nThis folder contains ${itemsText.join(" and ")}.\nThis action cannot be undone.`
         );
-        if (!confirmed) return;
       } else {
         // Empty folder
-        const confirmed = confirm(
+        console.log("Showing confirmation dialog for empty folder");
+        confirmed = confirm(
           `Delete empty folder "${itemName}"?\n\nThis action cannot be undone.`
         );
-        if (!confirmed) return;
       }
 
-      // Delete the folder
+      console.log("User confirmation result:", confirmed);
+
+      if (!confirmed) {
+        console.log("User cancelled deletion");
+        return;
+      }
+
+      // Only delete if confirmed
+      console.log("User confirmed, proceeding with deletion:", itemPath);
       await invoke("delete_folder", { path: itemPath });
       console.log("Folder deleted successfully:", itemPath);
 
       // Refresh the file tree
       await refreshFileTree();
+      console.log("File tree refreshed after folder deletion");
     } catch (error) {
       console.error("Failed to delete folder:", error);
       alert(`Failed to delete folder: ${error}`);
     }
   } else {
     // Delete file
+    console.log("Showing confirmation dialog for file:", itemName);
     const confirmed = confirm(
       `Delete file "${itemName}"?\n\nThis action cannot be undone.`
     );
-    if (!confirmed) return;
+
+    console.log("User confirmation result:", confirmed);
+
+    if (!confirmed) {
+      console.log("User cancelled file deletion");
+      return;
+    }
 
     try {
+      console.log("User confirmed, proceeding with file deletion:", itemPath);
       await invoke("delete_file", { path: itemPath });
       console.log("File deleted successfully:", itemPath);
 
@@ -374,6 +395,7 @@ async function deleteItem(itemPath: string, isDir: boolean) {
 
       // Refresh the file tree
       await refreshFileTree();
+      console.log("File tree refreshed after file deletion");
     } catch (error) {
       console.error("Failed to delete file:", error);
       alert(`Failed to delete file: ${error}`);
