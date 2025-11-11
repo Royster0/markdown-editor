@@ -6,6 +6,7 @@ import { state, markDirty, updateTitle } from "./state";
 import { editor } from "./dom";
 import { setEditorContent } from "./rendering";
 import { saveFile } from "./file-operations";
+import { createNewWindow } from "./window-controls";
 
 export interface Tab {
   id: string;
@@ -222,6 +223,7 @@ export function updateTabBar(): void {
     const tabElement = document.createElement("div");
     tabElement.className = "tab" + (index === activeTabIndex ? " active" : "");
     tabElement.dataset.tabIndex = String(index);
+    tabElement.draggable = true;
 
     // Tab label
     const tabLabel = document.createElement("span");
@@ -236,7 +238,7 @@ export function updateTabBar(): void {
     closeButton.innerHTML = "×";
     closeButton.title = "Close tab";
 
-    // Event listeners
+    // Click event listeners
     tabLabel.addEventListener("click", async () => {
       await switchToTab(index);
     });
@@ -244,6 +246,65 @@ export function updateTabBar(): void {
     closeButton.addEventListener("click", async (e) => {
       e.stopPropagation();
       await closeTab(index);
+    });
+
+    // Drag event listeners
+    let lastValidX = 0;
+    let lastValidY = 0;
+
+    tabElement.addEventListener("dragstart", (e) => {
+      lastValidX = e.clientX;
+      lastValidY = e.clientY;
+
+      // Store tab data for potential new window creation
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = "move";
+        e.dataTransfer.setData("text/plain", String(index));
+      }
+
+      tabElement.classList.add("dragging");
+    });
+
+    tabElement.addEventListener("drag", (e) => {
+      // Track the last valid position during drag
+      if (e.clientX !== 0 || e.clientY !== 0) {
+        lastValidX = e.clientX;
+        lastValidY = e.clientY;
+      }
+    });
+
+    tabElement.addEventListener("dragend", async (e) => {
+      tabElement.classList.remove("dragging");
+
+      // Get the final position - if clientX/Y are 0, use last valid position
+      const finalX = e.clientX !== 0 ? e.clientX : lastValidX;
+      const finalY = e.clientY !== 0 ? e.clientY : lastValidY;
+
+      const windowHeight = window.innerHeight;
+      const windowWidth = window.innerWidth;
+      const tabBarHeight = 80; // Approximate height of titlebar + tab bar
+
+      // Check if dropped outside the window or significantly above the tab bar
+      const isOutsideWindow =
+        finalX < 0 ||
+        finalX > windowWidth ||
+        finalY < 0 ||
+        finalY > windowHeight;
+
+      const isDraggedOut = finalY < tabBarHeight - 30; // Allow some threshold
+
+      if (isOutsideWindow || isDraggedOut) {
+        // Only create new window if there are multiple tabs
+        if (tabs.length > 1) {
+          await createNewWindow({
+            filePath: tab.filePath || undefined,
+            content: tab.content,
+          });
+
+          // Remove the tab from current window
+          await closeTab(index);
+        }
+      }
     });
 
     tabElement.appendChild(tabLabel);

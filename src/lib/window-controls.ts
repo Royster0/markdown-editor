@@ -3,6 +3,7 @@
  */
 
 import { Window } from "@tauri-apps/api/window";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
 import { fileMenuBtn, fileMenu } from "./dom";
 import { saveFile, newFile, openFile } from "./file-operations";
@@ -14,6 +15,42 @@ import { state } from "./state";
  * Get the main application window
  */
 const appWindow = Window.getCurrent();
+
+/**
+ * Create a new editor window
+ */
+let windowCounter = 0;
+export async function createNewWindow(options?: { filePath?: string; content?: string }): Promise<WebviewWindow | null> {
+  try {
+    windowCounter++;
+    const windowLabel = `editor-${Date.now()}-${windowCounter}`;
+
+    const newWindow = new WebviewWindow(windowLabel, {
+      title: "Loom.md",
+      width: 800,
+      height: 600,
+      decorations: false,
+      url: "/",
+    });
+
+    // Wait for window to be ready
+    await newWindow.once("tauri://created", () => {
+      console.log("New window created");
+    });
+
+    // If content is provided, we'll need to pass it to the new window
+    // This would require implementing inter-window communication
+    if (options?.filePath || options?.content) {
+      // TODO: Implement inter-window communication to pass tab data
+      console.log("Opening file in new window:", options);
+    }
+
+    return newWindow;
+  } catch (error) {
+    console.error("Failed to create new window:", error);
+    return null;
+  }
+}
 
 /**
  * Populate the theme selector dropdown
@@ -139,6 +176,13 @@ export function initWindowControls() {
     ?.addEventListener("click", toggleSidebar);
 
   // File menu items
+  document
+    .getElementById("file-menu-new-window")
+    ?.addEventListener("click", async () => {
+      await createNewWindow();
+      fileMenu?.classList.add("hidden");
+    });
+
   document
     .getElementById("file-menu-open-folder")
     ?.addEventListener("click", async () => {
