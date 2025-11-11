@@ -218,15 +218,16 @@ pub fn render_markdown_line(request: RenderRequest) -> LineRenderResult {
             };
         } else {
             let processed_text = render_inline_markdown(text);
+            let display_marker = if is_ordered { marker } else { "•" };
             return LineRenderResult {
                 html: format!(
                     "<span class=\"list-item\" style=\"padding-left: {}px\">\
-                    <span class=\"list-marker {}\">{}</span> \
+                    <span class=\"list-marker {}\">{}</span>\
                     {}\
                     </span>",
                     indent * 20,
                     marker_class,
-                    marker,
+                    display_marker,
                     processed_text
                 ),
                 is_code_block_boundary: false,

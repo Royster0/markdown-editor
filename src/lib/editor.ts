@@ -452,7 +452,7 @@ async function handleBackspaceKey(e: KeyboardEvent) {
     }
 
     // Move cursor to merge point
-    const textNode = prevLine.firstChild;
+    const textNode = getFirstTextNode(prevLine);
     if (textNode && textNode.nodeType === Node.TEXT_NODE) {
       const newRange = document.createRange();
       const newSelection = window.getSelection();
@@ -461,6 +461,9 @@ async function handleBackspaceKey(e: KeyboardEvent) {
       newRange.collapse(true);
       newSelection?.removeAllRanges();
       newSelection?.addRange(newRange);
+    } else {
+      // Fallback: just focus the editor
+      editor.focus();
     }
 
     // Update state

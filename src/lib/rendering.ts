@@ -64,19 +64,21 @@ export function renderLatexInHtml(html: string): string {
   // Check for math block lines and render them with KaTeX in display mode
   if (html.includes('class="math-block-line"')) {
     return html.replace(
-      /<span class="math-block-line">([^<]+)<\/span>/g,
+      /<span class="math-block-line">([\s\S]*?)<\/span>/g,
       (match, content) => {
         try {
-          const latex = content
-            .replace(/&lt;/g, "<")
-            .replace(/&gt;/g, ">")
-            .replace(/&amp;/g, "&");
+          // Decode HTML entities
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = content;
+          const latex = tempDiv.textContent || tempDiv.innerText || '';
+
           const rendered = katex.renderToString(latex.trim(), {
             displayMode: true,
             throwOnError: false,
           });
           return `<span class="math-block-line">${rendered}</span>`;
         } catch (e) {
+          console.error("Error rendering LaTeX:", e);
           return match;
         }
       }
