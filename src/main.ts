@@ -14,6 +14,7 @@ import { initWindowControls } from "./lib/window-controls";
 import { initializeTheme } from "./lib/theme";
 import { initializeSettings } from "./lib/settings";
 import { initFileTree } from "./lib/file-tree";
+import { initWelcomeScreen } from "./lib/welcome-screen";
 import type { RenderRequest } from "./lib/types";
 
 /**
@@ -26,44 +27,51 @@ async function initialize() {
   // Initialize settings system
   await initializeSettings();
 
-  // Set initial content
-  const initialContent = "# Welcome to Markdown Editor\n\nStart typing...";
-  const initialLines = initialContent
-    .split(/\r?\n/)
-    .map((line: string) => line.trimEnd());
-
-  // Create requests for batch rendering
-  const requests: RenderRequest[] = initialLines.map((line, index) => ({
-    line,
-    line_index: index,
-    all_lines: initialLines,
-    is_editing: false,
-  }));
-
-  // Batch render all lines
-  const results = await renderMarkdownBatch(requests);
-
   // Get editor element
   const editor = document.getElementById("editor") as HTMLDivElement;
 
-  // Use DocumentFragment for efficient DOM operations
-  const fragment = document.createDocumentFragment();
+  // Only set initial content if no folder is loaded
+  // If a folder is loaded, leave the editor blank
+  if (!state.currentFolder) {
+    const initialContent = "# Welcome to Markdown Editor\n\nStart typing...";
+    const initialLines = initialContent
+      .split(/\r?\n/)
+      .map((line: string) => line.trimEnd());
 
-  results.forEach((result, index) => {
-    const lineDiv = document.createElement("div");
-    lineDiv.className = "editor-line";
-    lineDiv.setAttribute("data-raw", initialLines[index]);
-    lineDiv.setAttribute("data-line", String(index));
-    lineDiv.innerHTML = result.html;
-    lineDiv.classList.remove("editing");
-    fragment.appendChild(lineDiv);
-  });
+    // Create requests for batch rendering
+    const requests: RenderRequest[] = initialLines.map((line, index) => ({
+      line,
+      line_index: index,
+      all_lines: initialLines,
+      is_editing: false,
+    }));
 
-  // Single DOM append
-  editor.appendChild(fragment);
+    // Batch render all lines
+    const results = await renderMarkdownBatch(requests);
 
-  // Initialize state
-  state.content = initialContent;
+    // Use DocumentFragment for efficient DOM operations
+    const fragment = document.createDocumentFragment();
+
+    results.forEach((result, index) => {
+      const lineDiv = document.createElement("div");
+      lineDiv.className = "editor-line";
+      lineDiv.setAttribute("data-raw", initialLines[index]);
+      lineDiv.setAttribute("data-line", String(index));
+      lineDiv.innerHTML = result.html;
+      lineDiv.classList.remove("editing");
+      fragment.appendChild(lineDiv);
+    });
+
+    // Single DOM append
+    editor.appendChild(fragment);
+
+    // Initialize state
+    state.content = initialContent;
+  } else {
+    // Folder is loaded, start with blank editor
+    state.content = "";
+  }
+
   state.editMode = false;
   state.currentLine = null;
 
@@ -75,6 +83,7 @@ async function initialize() {
   initEditorEvents();
   initWindowControls();
   initFileTree();
+  initWelcomeScreen();
 
   console.log("Markdown Editor initialized successfully");
 }

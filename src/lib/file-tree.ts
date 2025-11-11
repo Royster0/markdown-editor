@@ -11,6 +11,7 @@ import { loadFileContent } from "./file-operations";
 import { reinitializeThemeForFolder } from "./theme";
 import { reinitializeSettingsForFolder } from "./settings";
 import { showContextMenu, initContextMenu } from "./context-menu";
+import { hideWelcomeScreen } from "./welcome-screen";
 
 /**
  * Update the explorer header to show the current folder name
@@ -43,6 +44,11 @@ export async function openFolder() {
       await reinitializeThemeForFolder();
       // Reinitialize settings for the new folder
       await reinitializeSettingsForFolder();
+      // Hide welcome screen since folder is now loaded
+      hideWelcomeScreen();
+      // Show the sidebar when folder is opened
+      state.sidebarVisible = true;
+      sidebar.classList.remove("collapsed");
     }
   } catch (error) {
     console.error("Error opening folder:", error);

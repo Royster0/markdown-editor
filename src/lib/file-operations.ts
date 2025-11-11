@@ -10,6 +10,7 @@ import { editor } from "./dom";
 import { setEditorContent } from "./rendering";
 import { updateStatistics } from "./ui";
 import { refreshFileTree } from "./file-tree";
+import { hideWelcomeScreen } from "./welcome-screen";
 
 /**
  * Save the current file
@@ -154,6 +155,9 @@ export async function loadFileContent(filePath: string): Promise<void> {
     // Update UI
     updateStatistics(content);
     updateTitle();
+
+    // Hide welcome screen since file is now loaded
+    hideWelcomeScreen();
 
     console.log("File loaded successfully:", filePath);
   } catch (error) {
