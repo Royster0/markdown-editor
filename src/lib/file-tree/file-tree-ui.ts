@@ -198,6 +198,7 @@ async function toggleFolder(
 function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
   // Drag start handler
   item.addEventListener("dragstart", (e: DragEvent) => {
+    console.log("🚀 Drag started:", entry.name, "is_dir:", entry.is_dir);
     draggedItemPath = entry.path;
     item.classList.add("dragging");
 
@@ -210,6 +211,7 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
 
   // Drag end handler
   item.addEventListener("dragend", () => {
+    console.log("🏁 Drag ended");
     item.classList.remove("dragging");
     draggedItemPath = null;
 
@@ -222,6 +224,8 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
   item.addEventListener("dragover", (e: DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+
+    console.log("👆 Drag over:", entry.name, "is_dir:", entry.is_dir, "dragged:", draggedItemPath?.split(/[\\/]/).pop());
 
     // Only folders can be drop targets
     if (!entry.is_dir) {
@@ -269,6 +273,7 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
   // Drop handler - only folders handle drops
   if (entry.is_dir) {
     item.addEventListener("drop", async (e: DragEvent) => {
+      console.log("📦 Drop on:", entry.name);
       e.preventDefault();
       e.stopPropagation();
       item.classList.remove("drag-over");
@@ -288,11 +293,14 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
       }
 
       try {
+        console.log("Moving:", draggedItemPath, "to:", entry.path);
         // Move the file/folder
         const newPath = await invoke<string>("move_path", {
           sourcePath: draggedItemPath,
           destDirPath: entry.path,
         });
+
+        console.log("Moved successfully to:", newPath);
 
         // Update state if we moved the currently open file
         if (state.currentFile === draggedItemPath) {
