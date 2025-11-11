@@ -3,6 +3,7 @@
  */
 
 import { Window } from "@tauri-apps/api/window";
+import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
 import { fileMenuBtn, fileMenu } from "./dom";
 import { saveFile, newFile, openFile } from "./file-operations";
@@ -14,6 +15,51 @@ import { state } from "./state";
  * Get the main application window
  */
 const appWindow = Window.getCurrent();
+
+/**
+ * Create a new editor window
+ */
+let windowCounter = 0;
+export async function createNewWindow(options?: { filePath?: string; content?: string }): Promise<WebviewWindow | null> {
+  try {
+    windowCounter++;
+    const windowLabel = `editor-${Date.now()}-${windowCounter}`;
+
+    console.log("Creating new window with label:", windowLabel);
+
+    // Build URL with optional file path parameter
+    let windowUrl = "/";
+    if (options?.filePath) {
+      // Encode the file path to pass it as a URL parameter
+      const encodedPath = encodeURIComponent(options.filePath);
+      windowUrl = `/?file=${encodedPath}`;
+    }
+
+    const newWindow = new WebviewWindow(windowLabel, {
+      title: "Loom.md",
+      width: 800,
+      height: 600,
+      decorations: false,
+      url: windowUrl,
+    });
+
+    // Log when window is created
+    newWindow.once("tauri://created", () => {
+      console.log("New window created successfully");
+    });
+
+    // Log if there's an error
+    newWindow.once("tauri://error", (error) => {
+      console.error("Error creating window:", error);
+    });
+
+    return newWindow;
+  } catch (error) {
+    console.error("Failed to create new window:", error);
+    alert(`Failed to create new window: ${error}`);
+    return null;
+  }
+}
 
 /**
  * Populate the theme selector dropdown
@@ -139,6 +185,13 @@ export function initWindowControls() {
     ?.addEventListener("click", toggleSidebar);
 
   // File menu items
+  document
+    .getElementById("file-menu-new-window")
+    ?.addEventListener("click", async () => {
+      await createNewWindow();
+      fileMenu?.classList.add("hidden");
+    });
+
   document
     .getElementById("file-menu-open-folder")
     ?.addEventListener("click", async () => {

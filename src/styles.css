@@ -339,6 +339,15 @@ body {
   border-bottom-color: transparent;
 }
 
+.tab[draggable="true"] {
+  cursor: move;
+}
+
+.tab.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+}
+
 .tab-label {
   flex: 1;
   overflow: hidden;
