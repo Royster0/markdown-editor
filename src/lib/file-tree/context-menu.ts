@@ -3,9 +3,9 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { state } from "./state";
+import { state } from "../core/state";
 import { refreshAndRevealFile, refreshFileTree } from "./file-tree";
-import { loadFileContent, newFile } from "./file-operations";
+import { loadFileContent, newFile } from "../file-operations";
 
 interface ContextMenuItem {
   label: string;

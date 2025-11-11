@@ -5,11 +5,11 @@
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
-import { state } from "./state";
-import { updateStatistics } from "./ui";
-import { refreshFileTree } from "./file-tree";
-import { hideWelcomeScreen } from "./welcome-screen";
-import { openInTab, markCurrentTabClean } from "./tabs";
+import { state } from "./core/state";
+import { updateStatistics } from "./ui/ui";
+import { refreshFileTree } from "./file-tree/file-tree";
+import { hideWelcomeScreen } from "./ui/welcome-screen";
+import { openInTab, markCurrentTabClean } from "./tabs/tabs";
 
 /**
  * Save the current file

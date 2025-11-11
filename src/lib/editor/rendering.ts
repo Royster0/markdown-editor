@@ -7,8 +7,8 @@
 
 import { invoke } from "@tauri-apps/api/core";
 import katex from "katex";
-import { RenderRequest, LineRenderResult } from "./types";
-import { editor } from "./dom";
+import { RenderRequest, LineRenderResult } from "../core/types";
+import { editor } from "../core/dom";
 
 /**
  * Escape HTML entities

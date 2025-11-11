@@ -2,7 +2,7 @@
  * UI update functions for statistics, cursor position, etc.
  */
 
-import { editor, wordCountDisplay, charCountDisplay, cursorPositionDisplay } from "./dom";
+import { editor, wordCountDisplay, charCountDisplay, cursorPositionDisplay } from "../core/dom";
 
 /**
  * Update word and character count displays

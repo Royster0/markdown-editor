@@ -3,8 +3,8 @@
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { ThemeConfig, AppConfig } from "./types";
-import { state } from "./state";
+import { ThemeConfig, AppConfig } from "../core/types";
+import { state } from "../core/state";
 
 /**
  * Initialize theme system on app startup

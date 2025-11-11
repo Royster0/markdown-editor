@@ -2,11 +2,11 @@
  * Tab management for the editor
  */
 
-import { state, markDirty, updateTitle } from "./state";
-import { editor } from "./dom";
-import { setEditorContent } from "./rendering";
-import { saveFile } from "./file-operations";
-import { createNewWindow } from "./window-controls";
+import { state, markDirty, updateTitle } from "../core/state";
+import { editor } from "../core/dom";
+import { setEditorContent } from "../editor/rendering";
+import { saveFile } from "../file-operations";
+import { createNewWindow } from "../ui/window-controls";
 
 export interface Tab {
   id: string;

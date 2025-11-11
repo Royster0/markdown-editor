@@ -5,16 +5,16 @@
  * The application provides live markdown preview with LaTeX support.
  */
 
-import "./lib/types";
-import { state } from "./lib/state";
-import { updateStatistics, updateCursorPosition } from "./lib/ui";
-import { initEditorEvents } from "./lib/editor";
-import { initWindowControls } from "./lib/window-controls";
-import { initializeTheme } from "./lib/theme";
-import { initializeSettings } from "./lib/settings";
-import { initFileTree } from "./lib/file-tree";
-import { initWelcomeScreen, hideWelcomeScreen } from "./lib/welcome-screen";
-import { initTabs, openInTab, closeTab, getTabs } from "./lib/tabs";
+import "./lib/core/types";
+import { state } from "./lib/core/state";
+import { updateStatistics, updateCursorPosition } from "./lib/ui/ui";
+import { initEditorEvents } from "./lib/editor/editor";
+import { initWindowControls } from "./lib/ui/window-controls";
+import { initializeTheme } from "./lib/settings/theme";
+import { initializeSettings } from "./lib/settings/settings";
+import { initFileTree } from "./lib/file-tree/file-tree";
+import { initWelcomeScreen, hideWelcomeScreen } from "./lib/ui/welcome-screen";
+import { initTabs, openInTab, closeTab, getTabs } from "./lib/tabs/tabs";
 import { readTextFile } from "@tauri-apps/plugin-fs";
 
 /**

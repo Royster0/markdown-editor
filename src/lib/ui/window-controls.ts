@@ -5,11 +5,11 @@
 import { Window } from "@tauri-apps/api/window";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { open } from "@tauri-apps/plugin-dialog";
-import { fileMenuBtn, fileMenu } from "./dom";
-import { saveFile, newFile, openFile } from "./file-operations";
-import { openFolder, toggleSidebar } from "./file-tree";
-import { switchTheme, importTheme, getAvailableThemes } from "./theme";
-import { state } from "./state";
+import { fileMenuBtn, fileMenu } from "../core/dom";
+import { saveFile, newFile, openFile } from "../file-operations";
+import { openFolder, toggleSidebar } from "../file-tree/file-tree";
+import { switchTheme, importTheme, getAvailableThemes } from "../settings/theme";
+import { state } from "../core/state";
 
 /**
  * Get the main application window

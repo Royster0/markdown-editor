@@ -3,13 +3,13 @@
  * Shows when no folder is loaded
  */
 
-import { state } from "./state";
-import { openFolder, refreshFileTree } from "./file-tree";
+import { state } from "../core/state";
+import { openFolder, refreshFileTree } from "../file-tree/file-tree";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { explorerHeader, sidebar } from "./dom";
-import { reinitializeThemeForFolder } from "./theme";
-import { reinitializeSettingsForFolder } from "./settings";
+import { explorerHeader, sidebar } from "../core/dom";
+import { reinitializeThemeForFolder } from "../settings/theme";
+import { reinitializeSettingsForFolder } from "../settings/settings";
 
 let welcomeScreenElement: HTMLElement | null = null;
 

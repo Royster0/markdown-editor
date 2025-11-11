@@ -1,104 +1,12 @@
 /**
- * Text formatting and editing operations
+ * Markdown formatting operations
+ * Markdown-specific text formatting and structure
  */
 
-import { editor } from "./dom";
-import { handleInput } from "./editor";
-import { getCurrentLineNumber } from "./ui";
-
-/**
- * Get the current selection info
- */
-function getSelectionInfo() {
-  const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) return null;
-
-  const range = selection.getRangeAt(0);
-  const selectedText = selection.toString();
-
-  return { selection, range, selectedText };
-}
-
-/**
- * Insert text at cursor or wrap selected text
- */
-function insertOrWrapText(prefix: string, suffix: string = "", defaultText: string = "") {
-  const info = getSelectionInfo();
-  if (!info) return;
-
-  const { range, selectedText } = info;
-
-  // If there's selected text, wrap it
-  if (selectedText) {
-    const wrappedText = prefix + selectedText + suffix;
-    range.deleteContents();
-    range.insertNode(document.createTextNode(wrappedText));
-
-    // Move cursor after the inserted text
-    range.collapse(false);
-  } else {
-    // Insert prefix, default text, and suffix
-    const textToInsert = prefix + defaultText + suffix;
-    range.insertNode(document.createTextNode(textToInsert));
-
-    // Move cursor between prefix and suffix (if defaultText exists)
-    if (defaultText) {
-      range.setStart(range.startContainer, range.startOffset + prefix.length);
-      range.setEnd(range.startContainer, range.startOffset + defaultText.length);
-    } else {
-      range.collapse(false);
-    }
-  }
-
-  // Trigger input event to update rendering
-  handleInput();
-}
-
-/**
- * Select all text in the editor
- */
-export function selectAll() {
-  const selection = window.getSelection();
-  const range = document.createRange();
-  range.selectNodeContents(editor);
-  selection?.removeAllRanges();
-  selection?.addRange(range);
-}
-
-/**
- * Undo - uses browser's native undo
- */
-export function undo() {
-  document.execCommand('undo');
-}
-
-/**
- * Redo - uses browser's native redo
- */
-export function redo() {
-  document.execCommand('redo');
-}
-
-/**
- * Copy - uses browser's native copy
- */
-export function copy() {
-  document.execCommand('copy');
-}
-
-/**
- * Cut - uses browser's native cut
- */
-export function cut() {
-  document.execCommand('cut');
-}
-
-/**
- * Paste - uses browser's native paste
- */
-export function paste() {
-  document.execCommand('paste');
-}
+import { editor } from "../core/dom";
+import { handleInput } from "../editor/editor-events";
+import { getCurrentLineNumber } from "../ui/ui";
+import { getSelectionInfo, insertOrWrapText } from "./text-editing-utils";
 
 /**
  * Toggle bold formatting
@@ -269,51 +177,4 @@ export function decreaseHeadingLevel() {
   }
 
   handleInput();
-}
-
-/**
- * Open find dialog (browser's native find)
- */
-export function openFind() {
-  // Focus the editor first to ensure find works within the editor context
-  editor.focus();
-
-  // The native browser find will be triggered since we don't prevent default
-  // for this action in the keybind handler
-}
-
-/**
- * Open replace dialog (browser's native replace)
- */
-export function openReplace() {
-  // Focus the editor first
-  editor.focus();
-
-  // The native browser replace will be triggered since we don't prevent default
-  // for this action in the keybind handler
-}
-
-/**
- * Zoom in
- */
-export function zoomIn() {
-  const currentZoom = parseFloat(getComputedStyle(document.documentElement).fontSize);
-  document.documentElement.style.fontSize = (currentZoom + 1) + 'px';
-}
-
-/**
- * Zoom out
- */
-export function zoomOut() {
-  const currentZoom = parseFloat(getComputedStyle(document.documentElement).fontSize);
-  if (currentZoom > 8) {
-    document.documentElement.style.fontSize = (currentZoom - 1) + 'px';
-  }
-}
-
-/**
- * Reset zoom to default (16px)
- */
-export function resetZoom() {
-  document.documentElement.style.fontSize = '16px';
 }

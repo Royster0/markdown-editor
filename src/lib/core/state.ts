@@ -2,7 +2,7 @@
  * Application state management
  */
 
-import { EditorState } from "./types";
+import { EditorState } from "../core/types";
 
 /**
  * Global application state
