@@ -454,7 +454,7 @@ body {
   font-weight: 600;
   letter-spacing: 0.5px;
   color: var(--text-secondary);
-  background-color: var(--bg-tertiary);
+  background-color: var(--bg-secondary);
   border-bottom: 1px solid var(--border-color);
   position: sticky;
   top: 0;
