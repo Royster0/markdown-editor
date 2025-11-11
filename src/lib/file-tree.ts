@@ -223,7 +223,14 @@ function handleFileTreeContextMenu(e: MouseEvent) {
  * @param entries - Array of file entries
  */
 function renderFileTree(entries: FileEntry[]) {
+  // Clear file tree but keep the header
+  const header = fileTree.querySelector(".file-tree-header");
   fileTree.innerHTML = "";
+
+  // Re-add the header if it existed
+  if (header) {
+    fileTree.appendChild(header);
+  }
 
   entries.forEach((entry) => {
     const treeItem = createTreeItem(entry);

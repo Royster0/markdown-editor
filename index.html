@@ -145,10 +145,10 @@
       </div>
       <div class="main-container">
         <div id="sidebar" class="sidebar">
-          <div class="sidebar-header">
-            <span id="explorer-header">EXPLORER</span>
-          </div>
           <div id="file-tree" class="file-tree">
+            <div class="file-tree-header">
+              <span id="explorer-header">EXPLORER</span>
+            </div>
             <div class="empty-state">
               <p>No folder opened</p>
               <button id="open-folder-sidebar" class="open-folder-btn">Open Folder</button>
@@ -157,39 +157,29 @@
         </div>
 
         <div class="editor-container">
-          <div class="toolbar">
-            <div class="toolbar-left">
-              <!-- Empty for now -->
-            </div>
-            <div class="toolbar-center">
-              <!-- File operations moved to title bar File menu -->
-            </div>
-            <div class="toolbar-right">
-              <button
-                id="edit-mode-toggle"
-                class="toolbar-btn"
-                title="Toggle Edit Mode"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-                  ></path>
-                  <path
-                    d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
-                  ></path>
-                </svg>
-              </button>
-            </div>
-          </div>
           <div id="tab-bar" class="tab-bar">
             <!-- Tabs will be dynamically added here -->
+            <button
+              id="edit-mode-toggle"
+              class="tab-bar-btn"
+              title="Toggle Edit Mode"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
+                ></path>
+                <path
+                  d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+                ></path>
+              </svg>
+            </button>
           </div>
           <div
             id="editor"

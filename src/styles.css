@@ -298,6 +298,7 @@ body {
   height: 36px;
   padding: 0 4px;
   gap: 2px;
+  justify-content: space-between;
 }
 
 .tab-bar::-webkit-scrollbar {
@@ -375,6 +376,35 @@ body {
   color: var(--text-primary);
 }
 
+/* Tab Bar Button (Toggle Edit Mode) */
+.tab-bar-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  padding: 6px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.tab-bar-btn:hover {
+  background-color: var(--bg-tertiary);
+  border-color: var(--border-color);
+}
+
+.tab-bar-btn:active {
+  background-color: var(--bg-primary);
+}
+
+.tab-bar-btn svg {
+  stroke: var(--text-primary);
+}
+
 /* Main Container (holds sidebar and editor) */
 .main-container {
   display: flex;
@@ -416,7 +446,19 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 8px 0;
+}
+
+.file-tree-header {
+  padding: 12px 16px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  position: sticky;
+  top: 0;
+  z-index: 10;
 }
 
 .empty-state {
@@ -594,7 +636,7 @@ body {
 .editor {
   width: 100%;
   max-width: 900px;
-  min-height: calc(100vh - var(--titlebar-height) - var(--toolbar-height) - var(--statusbar-height));
+  min-height: calc(100vh - var(--titlebar-height) - 36px - var(--statusbar-height));
   margin: 0 auto;
   padding: 48px 32px;
   outline: none;
@@ -1346,7 +1388,7 @@ a:hover {
 /* Welcome Screen */
 .welcome-screen {
   position: absolute;
-  top: var(--toolbar-height);
+  top: 36px;
   left: 0;
   right: 0;
   bottom: 0;

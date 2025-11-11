@@ -139,7 +139,7 @@ function createWelcomeScreen() {
     </div>
   `;
 
-  // Insert before the toolbar
+  // Insert before the tab bar
   editorContainer.insertBefore(welcomeScreenElement, editorContainer.firstChild);
 
   // Add event listeners
