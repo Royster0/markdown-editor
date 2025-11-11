@@ -256,8 +256,14 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
       return;
     }
 
-    e.stopPropagation();
-    item.classList.remove("drag-over");
+    // Only remove drag-over if we're actually leaving the item, not just entering a child
+    const rect = item.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      item.classList.remove("drag-over");
+    }
   });
 
   // Drop handler - only folders handle drops
@@ -312,4 +318,12 @@ export function initFileTree() {
 
   // Add context menu handler for empty space (only once during init)
   fileTree.addEventListener("contextmenu", handleFileTreeContextMenu);
+
+  // Add dragover handler to file tree to prevent default when dragging over empty space
+  fileTree.addEventListener("dragover", (e: DragEvent) => {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "none";
+    }
+  });
 }

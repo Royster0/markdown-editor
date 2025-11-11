@@ -506,11 +506,6 @@ body {
   font-size: 13px;
 }
 
-/* Ensure child elements don't interfere with drag events */
-.tree-item * {
-  pointer-events: none;
-}
-
 .tree-item:hover {
   background-color: var(--bg-tertiary);
 }
@@ -566,7 +561,11 @@ body {
 /* Drag and Drop Styles */
 .tree-item.dragging {
   opacity: 0.4;
-  cursor: move;
+  cursor: move !important;
+}
+
+.tree-item.dragging * {
+  cursor: move !important;
 }
 
 .tree-item.drag-over {
