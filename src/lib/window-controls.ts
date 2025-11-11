@@ -25,17 +25,23 @@ export async function createNewWindow(options?: { filePath?: string; content?: s
     windowCounter++;
     const windowLabel = `editor-${Date.now()}-${windowCounter}`;
 
+    console.log("Creating new window with label:", windowLabel);
+
     const newWindow = new WebviewWindow(windowLabel, {
       title: "Loom.md",
       width: 800,
       height: 600,
       decorations: false,
-      url: "/",
     });
 
-    // Wait for window to be ready
-    await newWindow.once("tauri://created", () => {
-      console.log("New window created");
+    // Log when window is created
+    newWindow.once("tauri://created", () => {
+      console.log("New window created successfully");
+    });
+
+    // Log if there's an error
+    newWindow.once("tauri://error", (error) => {
+      console.error("Error creating window:", error);
     });
 
     // If content is provided, we'll need to pass it to the new window
@@ -48,6 +54,7 @@ export async function createNewWindow(options?: { filePath?: string; content?: s
     return newWindow;
   } catch (error) {
     console.error("Failed to create new window:", error);
+    alert(`Failed to create new window: ${error}`);
     return null;
   }
 }
