@@ -559,6 +559,11 @@ body {
 }
 
 /* Drag and Drop Styles */
+/* Ensure child elements don't interfere with drag events */
+.tree-item > * {
+  pointer-events: none;
+}
+
 .tree-item.dragging {
   opacity: 0.4;
   cursor: move !important;
