@@ -70,12 +70,12 @@ export function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement
     const arrow = document.createElement("span");
     arrow.className = "tree-item-arrow";
     arrow.setAttribute("draggable", "false"); // Prevent child from being draggable
-    arrow.style.pointerEvents = "none"; // Prevent child from blocking drag events
     arrow.innerHTML = `
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="6 4 10 8 6 12"></polyline>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" style="pointer-events: none;">
+        <polyline points="6 4 10 8 6 12" style="pointer-events: none;"></polyline>
       </svg>
     `;
+    arrow.style.pointerEvents = "none"; // Prevent child from blocking drag events
     item.appendChild(arrow);
   } else {
     // Empty space for files to align with folders
@@ -90,21 +90,21 @@ export function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement
   const icon = document.createElement("span");
   icon.className = "tree-item-icon";
   icon.setAttribute("draggable", "false"); // Prevent child from being draggable
-  icon.style.pointerEvents = "none"; // Prevent child from blocking drag events
   if (entry.is_dir) {
     icon.innerHTML = `
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M2 3h4l1 2h7v9H2z"></path>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="pointer-events: none;">
+        <path d="M2 3h4l1 2h7v9H2z" style="pointer-events: none;"></path>
       </svg>
     `;
   } else {
     icon.innerHTML = `
-      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M3 1h7l3 3v10H3z"></path>
-        <polyline points="10 1 10 4 13 4"></polyline>
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="pointer-events: none;">
+        <path d="M3 1h7l3 3v10H3z" style="pointer-events: none;"></path>
+        <polyline points="10 1 10 4 13 4" style="pointer-events: none;"></polyline>
       </svg>
     `;
   }
+  icon.style.pointerEvents = "none"; // Prevent child from blocking drag events
   item.appendChild(icon);
 
   // Name
@@ -150,6 +150,11 @@ export function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement
       item.classList.add("selected");
     });
   }
+
+  // Debug: Test if mouseover events reach the item
+  item.addEventListener("mouseover", () => {
+    console.log("🖱️ Mouse over:", entry.name);
+  }, { once: true }); // Only log once per item to avoid spam
 
   // Drag and drop handlers
   setupDragAndDrop(item, entry);

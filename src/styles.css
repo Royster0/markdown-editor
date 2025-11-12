@@ -560,8 +560,11 @@ body {
 
 /* Drag and Drop Styles */
 /* Ensure child elements don't interfere with drag events */
-.tree-item > * {
-  pointer-events: none;
+.tree-item > *,
+.tree-item > * > *,
+.tree-item svg,
+.tree-item svg * {
+  pointer-events: none !important;
 }
 
 .tree-item.dragging {
