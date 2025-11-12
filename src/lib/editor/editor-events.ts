@@ -27,10 +27,23 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onloadend = () => {
-      const base64 = (reader.result as string).split(",")[1]; // Remove data:image/png;base64, prefix
-      resolve(base64);
+      try {
+        const result = reader.result as string;
+        if (!result || !result.includes(",")) {
+          reject(new Error("Invalid data URL format"));
+          return;
+        }
+        const base64 = result.split(",")[1]; // Remove data:image/png;base64, prefix
+        if (!base64) {
+          reject(new Error("Failed to extract base64 data"));
+          return;
+        }
+        resolve(base64);
+      } catch (e) {
+        reject(e);
+      }
     };
-    reader.onerror = reject;
+    reader.onerror = () => reject(new Error("Failed to read blob"));
     reader.readAsDataURL(blob);
   });
 }
@@ -40,17 +53,41 @@ async function blobToBase64(blob: Blob): Promise<string> {
  */
 async function handleImagePaste(blob: Blob) {
   try {
+    // Validate blob
+    if (!blob || blob.size === 0) {
+      throw new Error("Invalid or empty image data");
+    }
+
+    // Check if blob is too large (e.g., > 10MB)
+    if (blob.size > 10 * 1024 * 1024) {
+      throw new Error("Image is too large (max 10MB)");
+    }
+
     // Convert blob to base64
     const base64Data = await blobToBase64(blob);
 
     // Get settings to determine save directory
     const settings = await getSettings();
-    const imageSaveFolder = settings.custom_settings?.imageSaveFolder || state.currentFolder || ".";
+    let imageSaveFolder = settings.custom_settings?.imageSaveFolder || ".";
+
+    // Resolve save directory relative to current folder
+    let resolvedSaveDir = state.currentFolder || ".";
+    if (imageSaveFolder && imageSaveFolder !== ".") {
+      // Remove leading ./ if present
+      imageSaveFolder = imageSaveFolder.replace(/^\.\//, "");
+
+      // Build absolute path
+      if (state.currentFolder) {
+        resolvedSaveDir = `${state.currentFolder}/${imageSaveFolder}`;
+      } else {
+        resolvedSaveDir = imageSaveFolder;
+      }
+    }
 
     // Save image via Rust backend
     const imagePath = await invoke<string>("save_image_from_clipboard", {
       base64Data,
-      saveDir: imageSaveFolder,
+      saveDir: resolvedSaveDir,
       filenamePrefix: "pasted",
     });
 
@@ -74,19 +111,9 @@ async function handleImagePaste(blob: Blob) {
     const beforeCursor = currentText.substring(0, cursorPos);
     const afterCursor = currentText.substring(cursorPos);
 
-    // Generate relative path if possible
-    let relativeImagePath = imagePath;
-    if (state.currentFile) {
-      const currentFileDir = state.currentFile.substring(0, state.currentFile.lastIndexOf("/"));
-      if (imagePath.startsWith(currentFileDir)) {
-        relativeImagePath = imagePath.substring(currentFileDir.length + 1);
-      } else if (state.currentFolder && imagePath.startsWith(state.currentFolder)) {
-        relativeImagePath = imagePath.substring(state.currentFolder.length + 1);
-      }
-    }
-
-    // Insert markdown image syntax
-    const imageMarkdown = `![image](${relativeImagePath})`;
+    // Use absolute path for images - convertFileSrc will handle it
+    // Insert markdown image syntax with absolute path
+    const imageMarkdown = `![image](${imagePath})`;
     const newText = beforeCursor + imageMarkdown + afterCursor;
     currentLine.setAttribute("data-raw", newText);
 
@@ -118,7 +145,8 @@ async function handleImagePaste(blob: Blob) {
     console.log(`Image pasted and saved to: ${imagePath}`);
   } catch (error) {
     console.error("Failed to paste image:", error);
-    alert(`Failed to paste image: ${error}`);
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    alert(`Failed to paste image: ${errorMsg}`);
   }
 }
 

@@ -69,16 +69,17 @@ export function convertImagePaths(html: string): string {
     /<img([^>]*?)src="([^"]+)"([^>]*?)>/g,
     (match, before, src, after) => {
       try {
-        // Skip if already using a protocol (http://, https://, data:, etc.)
-        if (src.match(/^[a-z]+:/i)) {
+        // Skip if already using a protocol (http://, https://, data:, asset:, etc.)
+        if (src.match(/^[a-z][a-z0-9+.-]*:/i)) {
           return match;
         }
 
         // Convert file path to Tauri asset URL
         const assetUrl = convertFileSrc(src);
+        console.log(`Converting image path: ${src} -> ${assetUrl}`);
         return `<img${before}src="${assetUrl}"${after}>`;
       } catch (e) {
-        console.error("Error converting image path:", e);
+        console.error("Error converting image path:", src, e);
         return match;
       }
     }
