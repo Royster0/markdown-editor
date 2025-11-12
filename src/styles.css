@@ -454,6 +454,13 @@ body {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
+  transition: background-color 0.2s;
+}
+
+.file-tree.drag-over-root {
+  background-color: rgba(0, 122, 204, 0.1);
+  outline: 2px dashed var(--accent-color);
+  outline-offset: -2px;
 }
 
 .file-tree-header {

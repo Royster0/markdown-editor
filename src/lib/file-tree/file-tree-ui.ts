@@ -246,6 +246,7 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
     // Remove all drag-over classes
     document.querySelectorAll(".tree-item.drag-over")
       .forEach(el => el.classList.remove("drag-over"));
+    fileTree.classList.remove("drag-over-root");
   });
 
   // Drag over handler - applies to all items but only folders are valid drop targets
@@ -352,4 +353,52 @@ export function initFileTree() {
 
   // Add context menu handler for empty space (only once during init)
   fileTree.addEventListener("contextmenu", handleFileTreeContextMenu);
+
+  // Allow dropping into empty space to move items to root folder
+  fileTree.addEventListener("dragover", (e: DragEvent) => {
+    // Only handle if dragging over the fileTree itself (empty space), not child elements
+    if (e.target === fileTree) {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "move";
+      }
+      fileTree.classList.add("drag-over-root");
+    }
+  });
+
+  fileTree.addEventListener("dragleave", (e: DragEvent) => {
+    // Only process if leaving the fileTree itself
+    if (e.target === fileTree) {
+      fileTree.classList.remove("drag-over-root");
+    }
+  });
+
+  fileTree.addEventListener("drop", async (e: DragEvent) => {
+    // Only handle if dropping on the fileTree itself (empty space)
+    if (e.target === fileTree) {
+      e.preventDefault();
+      fileTree.classList.remove("drag-over-root");
+
+      if (!draggedItemPath || !state.currentFolder) return;
+
+      try {
+        // Move the file/folder to the root directory
+        const newPath = await invoke<string>("move_path", {
+          sourcePath: draggedItemPath,
+          destDirPath: state.currentFolder,
+        });
+
+        // Update state if we moved the currently open file
+        if (state.currentFile === draggedItemPath) {
+          state.currentFile = newPath;
+        }
+
+        // Refresh and reveal the moved item
+        await refreshAndRevealFile(newPath);
+      } catch (error) {
+        console.error("Failed to move to root:", error);
+        alert(`Failed to move: ${error}`);
+      }
+    }
+  });
 }
