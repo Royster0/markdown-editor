@@ -69,8 +69,16 @@ export function convertImagePaths(html: string): string {
     /<img([^>]*?)src="([^"]+)"([^>]*?)>/g,
     (match, before, src, after) => {
       try {
-        // Skip if already using a protocol (http://, https://, data:, asset:, etc.)
-        if (src.match(/^[a-z][a-z0-9+.-]*:/i)) {
+        // Skip if already using a URL protocol (must have :// after protocol name)
+        // This properly distinguishes URLs from Windows paths like C:\
+        if (src.match(/^[a-z][a-z0-9+.-]*:\/\//i)) {
+          console.log(`Skipping URL with protocol: ${src}`);
+          return match;
+        }
+
+        // Skip data URLs (they have : but no //)
+        if (src.startsWith("data:")) {
+          console.log(`Skipping data URL: ${src.substring(0, 50)}...`);
           return match;
         }
 
