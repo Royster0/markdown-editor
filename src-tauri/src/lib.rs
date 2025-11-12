@@ -274,6 +274,48 @@ fn rename_path(old_path: String, new_name: String) -> Result<String, String> {
     Ok(new_path)
 }
 
+// Move a file or folder to a different directory
+#[tauri::command]
+fn move_path(source_path: String, dest_dir_path: String) -> Result<String, String> {
+    let source_path_buf = PathBuf::from(&source_path);
+    let dest_dir_buf = PathBuf::from(&dest_dir_path);
+
+    // Check if source exists
+    if !source_path_buf.exists() {
+        return Err("Source path does not exist".to_string());
+    }
+
+    // Check if destination directory exists
+    if !dest_dir_buf.exists() {
+        return Err("Destination directory does not exist".to_string());
+    }
+
+    // Check if destination is a directory
+    if !dest_dir_buf.is_dir() {
+        return Err("Destination must be a directory".to_string());
+    }
+
+    // Get the file/folder name
+    let name = source_path_buf.file_name()
+        .ok_or_else(|| "Cannot get source name".to_string())?;
+
+    // Create new path in destination directory
+    let new_path_buf = dest_dir_buf.join(name);
+
+    // Check if destination already has a file/folder with the same name
+    if new_path_buf.exists() {
+        return Err("A file or folder with that name already exists in the destination".to_string());
+    }
+
+    // Move (rename) the file/folder
+    fs::rename(&source_path_buf, &new_path_buf)
+        .map_err(|e| format!("Failed to move: {}", e))?;
+
+    let new_path = new_path_buf.to_string_lossy().to_string();
+    println!("Moved {:?} to {:?}", source_path, new_path);
+    Ok(new_path)
+}
+
 // Theme and config commands
 
 /// Initialize the .loom directory structure
@@ -392,6 +434,7 @@ pub fn run() {
             delete_folder,
             count_folder_contents,
             rename_path,
+            move_path,
             init_loom_dir,
             get_loom_directory,
             load_config,

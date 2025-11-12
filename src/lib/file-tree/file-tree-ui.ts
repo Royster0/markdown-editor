@@ -8,8 +8,13 @@ import type { FileEntry } from "../core/types";
 import { fileTree } from "../core/dom";
 import { loadFileContent } from "../file-operations";
 import { showContextMenu, initContextMenu } from "./context-menu";
-import { expandedFolders } from "./file-tree-core";
+import { expandedFolders, refreshAndRevealFile } from "./file-tree-core";
 import { initSidebarResize } from "./sidebar";
+import { state } from "../core/state";
+
+// Store the currently dragged item
+let draggedItemPath: string | null = null;
+let isDragging = false;
 
 /**
  * Context menu handler for empty space in file tree
@@ -57,10 +62,14 @@ export function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement
   item.setAttribute("data-path", entry.path);
   item.setAttribute("data-is-dir", entry.is_dir.toString());
 
+  // Make item draggable
+  item.setAttribute("draggable", "true");
+
   // Arrow for folders
   if (entry.is_dir) {
     const arrow = document.createElement("span");
     arrow.className = "tree-item-arrow";
+    arrow.setAttribute("draggable", "false"); // Prevent child from being draggable
     arrow.innerHTML = `
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
         <polyline points="6 4 10 8 6 12"></polyline>
@@ -71,12 +80,14 @@ export function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement
     // Empty space for files to align with folders
     const spacer = document.createElement("span");
     spacer.className = "tree-item-arrow";
+    spacer.setAttribute("draggable", "false");
     item.appendChild(spacer);
   }
 
   // Icon
   const icon = document.createElement("span");
   icon.className = "tree-item-icon";
+  icon.setAttribute("draggable", "false"); // Prevent child from being draggable
   if (entry.is_dir) {
     icon.innerHTML = `
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -96,6 +107,7 @@ export function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement
   // Name
   const name = document.createElement("span");
   name.className = "tree-item-name";
+  name.setAttribute("draggable", "false"); // Prevent child from being draggable
   name.textContent = entry.name;
   item.appendChild(name);
 
@@ -116,12 +128,14 @@ export function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement
 
     // Click handler for folders
     item.addEventListener("click", async (e) => {
+      if (isDragging) return; // Don't handle clicks while dragging
       e.stopPropagation();
       await toggleFolder(item, childrenContainer, entry, level);
     });
   } else {
     // Click handler for files
     item.addEventListener("click", async (e) => {
+      if (isDragging) return; // Don't handle clicks while dragging
       e.stopPropagation();
       await loadFileContent(entry.path);
 
@@ -132,6 +146,9 @@ export function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement
       item.classList.add("selected");
     });
   }
+
+  // Drag and drop handlers
+  setupDragAndDrop(item, entry);
 
   return container;
 }
@@ -181,6 +198,153 @@ async function toggleFolder(
 }
 
 /**
+ * Setup drag and drop handlers for a tree item
+ * @param item - The tree item element
+ * @param entry - File entry for the item
+ */
+function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
+  // Track mousedown to distinguish between click and drag
+  item.addEventListener("mousedown", () => {
+    isDragging = false;
+  });
+
+  // Drag start handler
+  item.addEventListener("dragstart", (e: DragEvent) => {
+    isDragging = true;
+    draggedItemPath = entry.path;
+    item.classList.add("dragging");
+
+    // Set drag data - MUST set at least one data item for drag to work
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", entry.path);
+
+      // Set a custom drag image
+      const dragImage = item.cloneNode(true) as HTMLElement;
+      dragImage.style.position = "absolute";
+      dragImage.style.top = "-9999px";
+      document.body.appendChild(dragImage);
+      e.dataTransfer.setDragImage(dragImage, 0, 0);
+
+      // Clean up the drag image after a short delay
+      setTimeout(() => {
+        document.body.removeChild(dragImage);
+      }, 0);
+    }
+  });
+
+  // Drag end handler
+  item.addEventListener("dragend", () => {
+    item.classList.remove("dragging");
+    draggedItemPath = null;
+
+    // Reset isDragging after a short delay to allow click events to check it
+    setTimeout(() => {
+      isDragging = false;
+    }, 10);
+
+    // Remove all drag-over classes
+    document.querySelectorAll(".tree-item.drag-over")
+      .forEach(el => el.classList.remove("drag-over"));
+    fileTree.classList.remove("drag-over-root");
+  });
+
+  // Drag over handler - applies to all items but only folders are valid drop targets
+  item.addEventListener("dragover", (e: DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // Only folders can be drop targets
+    if (!entry.is_dir) {
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "none";
+      }
+      return;
+    }
+
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = "move";
+    }
+
+    // Don't allow dropping into itself or if no item is being dragged
+    if (!draggedItemPath || draggedItemPath === entry.path) {
+      return;
+    }
+
+    // Check if we're not trying to move a parent folder into its child
+    const separator = entry.path.includes("\\") ? "\\" : "/";
+    if (entry.path.startsWith(draggedItemPath + separator)) {
+      return;
+    }
+
+    item.classList.add("drag-over");
+  });
+
+  // Drag leave handler - applies to all items
+  item.addEventListener("dragleave", (e: DragEvent) => {
+    // Only process if this is a folder
+    if (!entry.is_dir) {
+      return;
+    }
+
+    // Only remove drag-over if we're actually leaving the item, not just entering a child
+    const rect = item.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+
+    if (x < rect.left || x >= rect.right || y < rect.top || y >= rect.bottom) {
+      item.classList.remove("drag-over");
+    }
+  });
+
+  // Drop handler - only folders handle drops
+  if (entry.is_dir) {
+    item.addEventListener("drop", async (e: DragEvent) => {
+      console.log("📦 Drop on:", entry.name);
+      e.preventDefault();
+      e.stopPropagation();
+      item.classList.remove("drag-over");
+
+      if (!draggedItemPath) return;
+
+      // Don't allow dropping into itself
+      if (draggedItemPath === entry.path) {
+        return;
+      }
+
+      // Don't allow moving a parent folder into its child
+      const separator = entry.path.includes("\\") ? "\\" : "/";
+      if (entry.path.startsWith(draggedItemPath + separator)) {
+        alert("Cannot move a folder into its own subfolder");
+        return;
+      }
+
+      try {
+        console.log("Moving:", draggedItemPath, "to:", entry.path);
+        // Move the file/folder
+        const newPath = await invoke<string>("move_path", {
+          sourcePath: draggedItemPath,
+          destDirPath: entry.path,
+        });
+
+        console.log("Moved successfully to:", newPath);
+
+        // Update state if we moved the currently open file
+        if (state.currentFile === draggedItemPath) {
+          state.currentFile = newPath;
+        }
+
+        // Refresh and reveal the moved item
+        await refreshAndRevealFile(newPath);
+      } catch (error) {
+        console.error("Failed to move:", error);
+        alert(`Failed to move: ${error}`);
+      }
+    });
+  }
+}
+
+/**
  * Initialize file tree functionality
  */
 export function initFileTree() {
@@ -189,4 +353,52 @@ export function initFileTree() {
 
   // Add context menu handler for empty space (only once during init)
   fileTree.addEventListener("contextmenu", handleFileTreeContextMenu);
+
+  // Allow dropping into empty space to move items to root folder
+  fileTree.addEventListener("dragover", (e: DragEvent) => {
+    // Only handle if dragging over the fileTree itself (empty space), not child elements
+    if (e.target === fileTree) {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = "move";
+      }
+      fileTree.classList.add("drag-over-root");
+    }
+  });
+
+  fileTree.addEventListener("dragleave", (e: DragEvent) => {
+    // Only process if leaving the fileTree itself
+    if (e.target === fileTree) {
+      fileTree.classList.remove("drag-over-root");
+    }
+  });
+
+  fileTree.addEventListener("drop", async (e: DragEvent) => {
+    // Only handle if dropping on the fileTree itself (empty space)
+    if (e.target === fileTree) {
+      e.preventDefault();
+      fileTree.classList.remove("drag-over-root");
+
+      if (!draggedItemPath || !state.currentFolder) return;
+
+      try {
+        // Move the file/folder to the root directory
+        const newPath = await invoke<string>("move_path", {
+          sourcePath: draggedItemPath,
+          destDirPath: state.currentFolder,
+        });
+
+        // Update state if we moved the currently open file
+        if (state.currentFile === draggedItemPath) {
+          state.currentFile = newPath;
+        }
+
+        // Refresh and reveal the moved item
+        await refreshAndRevealFile(newPath);
+      } catch (error) {
+        console.error("Failed to move to root:", error);
+        alert(`Failed to move: ${error}`);
+      }
+    }
+  });
 }
