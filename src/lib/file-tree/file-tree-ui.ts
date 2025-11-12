@@ -218,6 +218,9 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
   item.addEventListener("dragstart", (e: DragEvent) => {
     console.log("🚀 Drag started:", entry.name, "is_dir:", entry.is_dir);
 
+    // CRITICAL: Don't call preventDefault on dragstart - it cancels the drag!
+    // e.preventDefault();
+
     isDragging = true;
     draggedItemPath = entry.path;
     item.classList.add("dragging");
@@ -226,6 +229,19 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
     if (e.dataTransfer) {
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", entry.path);
+
+      // Set a custom drag image to ensure browser handles drag properly
+      // This might help Tauri webview recognize the drag operation
+      const dragImage = item.cloneNode(true) as HTMLElement;
+      dragImage.style.position = "absolute";
+      dragImage.style.top = "-9999px";
+      document.body.appendChild(dragImage);
+      e.dataTransfer.setDragImage(dragImage, 0, 0);
+
+      // Clean up the drag image after a short delay
+      setTimeout(() => {
+        document.body.removeChild(dragImage);
+      }, 0);
 
       // Debug: Check if dataTransfer is properly set
       console.log("  ✓ Drag data set, effectAllowed:", e.dataTransfer.effectAllowed);
@@ -256,7 +272,8 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
   // Use capture phase to intercept events before they reach children
   item.addEventListener("dragover", (e: DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
+    // Don't stopPropagation - let events bubble to document for debugging
+    // e.stopPropagation();
 
     console.log("👆 Drag over:", entry.name, "is_dir:", entry.is_dir, "dragged:", draggedItemPath?.split(/[\\/]/).pop());
 
@@ -289,7 +306,8 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
   // Drag enter handler - fires when drag first enters the element
   item.addEventListener("dragenter", (e: DragEvent) => {
     e.preventDefault();
-    e.stopPropagation();
+    // Don't stopPropagation - let events bubble to document for debugging
+    // e.stopPropagation();
     console.log("🎯 Drag enter:", entry.name, "is_dir:", entry.is_dir);
   }, true); // Add capture:true
 
