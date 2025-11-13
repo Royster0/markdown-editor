@@ -4,10 +4,10 @@
  */
 
 import { save } from "@tauri-apps/plugin-dialog";
-import { writeTextFile } from "@tauri-apps/plugin-fs";
+import { writeTextFile, readFile } from "@tauri-apps/plugin-fs";
 import { invoke } from "@tauri-apps/api/core";
 import { state } from "../core/state";
-import { getAllLines } from "../editor/rendering";
+import { getAllLines, renderLatexInHtml } from "../editor/rendering";
 import { RenderRequest, LineRenderResult } from "../core/types";
 
 /**
@@ -24,6 +24,81 @@ function getKaTeXCSS(): string {
 .katex .strut { display: inline-block; }
 .katex .mord, .katex .mrel, .katex .mbin, .katex .mop, .katex .mopen, .katex .mclose, .katex .mpunct { display: inline; }
   `;
+}
+
+/**
+ * Convert image src to base64 data URL for embedding in exported HTML
+ * @param src - Image source path
+ * @returns Base64 data URL or original src if conversion fails
+ */
+async function convertImageToDataUrl(src: string): Promise<string> {
+  try {
+    // Skip if already a URL protocol
+    if (src.match(/^[a-z][a-z0-9+.-]*:\/\//i)) {
+      return src;
+    }
+
+    // Skip if already a data URL
+    if (src.startsWith("data:")) {
+      return src;
+    }
+
+    // Determine image MIME type from extension
+    const ext = src.split('.').pop()?.toLowerCase() || '';
+    const mimeTypes: { [key: string]: string } = {
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg',
+      'gif': 'image/gif',
+      'webp': 'image/webp',
+      'svg': 'image/svg+xml',
+      'bmp': 'image/bmp',
+    };
+    const mimeType = mimeTypes[ext] || 'image/png';
+
+    // Read the file as bytes
+    const imageData = await readFile(src);
+
+    // Convert to base64
+    const base64 = btoa(
+      Array.from(new Uint8Array(imageData))
+        .map((byte: number) => String.fromCharCode(byte))
+        .join('')
+    );
+
+    return `data:${mimeType};base64,${base64}`;
+  } catch (error) {
+    console.error(`Error converting image to data URL: ${src}`, error);
+    return src; // Return original path if conversion fails
+  }
+}
+
+/**
+ * Convert all image paths in HTML to base64 data URLs
+ * @param html - HTML string containing img tags
+ * @returns HTML with embedded base64 images
+ */
+async function embedImagesAsBase64(html: string): Promise<string> {
+  // Quick check: if no img tag, skip processing
+  if (!html.includes("<img")) {
+    return html;
+  }
+
+  // Extract all image src attributes
+  const imgRegex = /<img([^>]*?)src="([^"]+)"([^>]*?)>/g;
+  const matches = [...html.matchAll(imgRegex)];
+
+  // Convert each image to base64
+  for (const match of matches) {
+    const [fullMatch, before, src, after] = match;
+    const dataUrl = await convertImageToDataUrl(src);
+
+    // Replace in HTML
+    const newImg = `<img${before}src="${dataUrl}"${after}>`;
+    html = html.replace(fullMatch, newImg);
+  }
+
+  return html;
 }
 
 /**
@@ -46,7 +121,20 @@ async function renderAllLinesToHTML(): Promise<string[]> {
       requests,
     });
 
-    return results.map((result: LineRenderResult) => result.html);
+    // Post-process each line: apply LaTeX rendering and embed images
+    const processedLines = await Promise.all(
+      results.map(async (result: LineRenderResult) => {
+        // Apply LaTeX rendering (KaTeX on frontend)
+        let html = renderLatexInHtml(result.html);
+
+        // Embed images as base64 data URLs
+        html = await embedImagesAsBase64(html);
+
+        return html;
+      })
+    );
+
+    return processedLines;
   } catch (error) {
     console.error("Error rendering markdown for export:", error);
     return allLines.map(line => `<p>${escapeHtml(line)}</p>`);
