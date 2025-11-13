@@ -21,14 +21,8 @@ export function highlightMatches(matches: SearchMatch[]): void {
     return;
   }
 
-  const editorContent = editor.textContent || '';
-  const lines = editorContent.split('\n');
-
   matches.forEach((match, index) => {
-    const lineIndex = match.line - 1;
-    if (lineIndex >= 0 && lineIndex < lines.length) {
-      highlightMatchInLine(match, index);
-    }
+    highlightMatchInLine(match, index);
   });
 }
 
@@ -41,62 +35,58 @@ function highlightMatchInLine(match: SearchMatch, matchIndex: number): void {
   const searchState = getSearchState();
   const isCurrentMatch = matchIndex === searchState.currentMatchIndex;
 
-  // Create a temporary div to calculate positions
-  const tempDiv = document.createElement('div');
-  tempDiv.style.cssText = window.getComputedStyle(editor).cssText;
-  tempDiv.style.position = 'absolute';
-  tempDiv.style.visibility = 'hidden';
-  tempDiv.style.whiteSpace = 'pre';
-  tempDiv.style.pointerEvents = 'none';
-  document.body.appendChild(tempDiv);
+  // Find the line element
+  const lineElement = editor.querySelector(`.editor-line[data-line="${match.line - 1}"]`) as HTMLElement;
+  if (!lineElement) return;
 
-  const editorContent = editor.textContent || '';
-  const lines = editorContent.split('\n');
-  const lineIndex = match.line - 1;
+  // Get the raw text of the line
+  const lineText = lineElement.getAttribute('data-raw') || '';
+  if (!lineText) return;
 
-  if (lineIndex < 0 || lineIndex >= lines.length) {
-    document.body.removeChild(tempDiv);
-    return;
-  }
-
-  const lineText = lines[lineIndex];
+  // Find the match position in the line
   const columnIndex = match.column - 1;
 
-  // Calculate line position
-  let lineTop = 0;
-  for (let i = 0; i < lineIndex; i++) {
-    tempDiv.textContent = lines[i] || ' ';
-    lineTop += tempDiv.offsetHeight;
-  }
+  // Create a highlight span that we'll insert into the line
+  const beforeText = lineText.substring(0, columnIndex);
+  const matchText = lineText.substring(columnIndex, columnIndex + match.length);
+  const afterText = lineText.substring(columnIndex + match.length);
 
-  // Calculate column position
-  tempDiv.textContent = lineText.substring(0, columnIndex);
-  const left = tempDiv.offsetWidth;
+  // Create highlight element overlay
+  const lineRect = lineElement.getBoundingClientRect();
+  const editorRect = editor.getBoundingClientRect();
 
-  // Calculate match width
-  tempDiv.textContent = lineText.substring(columnIndex, columnIndex + match.length);
-  const width = tempDiv.offsetWidth;
-  const height = tempDiv.offsetHeight;
+  // Create a temporary span to measure text width
+  const tempSpan = document.createElement('span');
+  tempSpan.style.cssText = window.getComputedStyle(lineElement).cssText;
+  tempSpan.style.position = 'absolute';
+  tempSpan.style.visibility = 'hidden';
+  tempSpan.style.whiteSpace = 'pre';
+  tempSpan.textContent = beforeText;
+  document.body.appendChild(tempSpan);
 
-  document.body.removeChild(tempDiv);
+  const leftOffset = tempSpan.offsetWidth;
 
-  // Create highlight element
+  tempSpan.textContent = matchText;
+  const matchWidth = tempSpan.offsetWidth;
+
+  document.body.removeChild(tempSpan);
+
+  // Create highlight overlay
   const highlight = document.createElement('div');
   highlight.className = isCurrentMatch ? 'search-highlight-current' : 'search-highlight';
   highlight.style.position = 'absolute';
-  highlight.style.left = `${left}px`;
-  highlight.style.top = `${lineTop}px`;
-  highlight.style.width = `${width}px`;
-  highlight.style.height = `${height}px`;
+  highlight.style.left = `${lineRect.left - editorRect.left + leftOffset}px`;
+  highlight.style.top = `${lineRect.top - editorRect.top}px`;
+  highlight.style.width = `${matchWidth}px`;
+  highlight.style.height = `${lineRect.height}px`;
   highlight.style.backgroundColor = isCurrentMatch ? 'rgba(255, 165, 0, 0.5)' : 'rgba(255, 255, 0, 0.3)';
   highlight.style.pointerEvents = 'none';
   highlight.style.borderRadius = '2px';
   highlight.style.zIndex = '1';
+  highlight.style.transition = 'background-color 0.2s';
 
-  // Add to editor (we'll need a wrapper for highlights)
-  if (!editor.parentElement) return;
-
-  let highlightContainer = editor.parentElement.querySelector('.search-highlights-container') as HTMLElement;
+  // Add to highlight container
+  let highlightContainer = editor.querySelector('.search-highlights-container') as HTMLElement;
   if (!highlightContainer) {
     highlightContainer = document.createElement('div');
     highlightContainer.className = 'search-highlights-container';
@@ -106,9 +96,9 @@ function highlightMatchInLine(match: SearchMatch, matchIndex: number): void {
     highlightContainer.style.width = '100%';
     highlightContainer.style.height = '100%';
     highlightContainer.style.pointerEvents = 'none';
-    highlightContainer.style.overflow = 'hidden';
-    editor.parentElement.style.position = 'relative';
-    editor.parentElement.insertBefore(highlightContainer, editor);
+    highlightContainer.style.zIndex = '1';
+    editor.style.position = 'relative';
+    editor.insertBefore(highlightContainer, editor.firstChild);
   }
 
   highlightContainer.appendChild(highlight);
@@ -119,9 +109,9 @@ function highlightMatchInLine(match: SearchMatch, matchIndex: number): void {
  * Clear all search highlights
  */
 export function clearHighlights(): void {
-  if (!editor || !editor.parentElement) return;
+  if (!editor) return;
 
-  const highlightContainer = editor.parentElement.querySelector('.search-highlights-container');
+  const highlightContainer = editor.querySelector('.search-highlights-container');
   if (highlightContainer) {
     highlightContainer.remove();
   }
@@ -135,24 +125,14 @@ export function clearHighlights(): void {
 export function scrollToMatch(match: SearchMatch): void {
   if (!editor) return;
 
-  const editorContent = editor.textContent || '';
-  const lines = editorContent.split('\n');
-  const lineIndex = match.line - 1;
+  // Find the line element
+  const lineElement = editor.querySelector(`.editor-line[data-line="${match.line - 1}"]`) as HTMLElement;
+  if (!lineElement) return;
 
-  if (lineIndex < 0 || lineIndex >= lines.length) {
-    return;
-  }
+  // Scroll the line into view
+  lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-  // Calculate the position to scroll to
-  const lineHeight = parseInt(window.getComputedStyle(editor).lineHeight) || 20;
-  const scrollTop = lineIndex * lineHeight;
-
-  // Scroll the editor
-  if (editor.parentElement) {
-    editor.parentElement.scrollTop = scrollTop - (editor.parentElement.clientHeight / 2);
-  }
-
-  // Also update the editor focus
+  // Focus the editor
   editor.focus();
 }
 

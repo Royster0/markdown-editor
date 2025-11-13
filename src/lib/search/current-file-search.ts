@@ -50,10 +50,12 @@ export function goToNextMatch(): void {
 
   nextMatch();
 
+  // Re-highlight all matches with updated current match
+  highlightMatches(searchState.currentFileMatches);
+
   const currentMatch = searchState.currentFileMatches[searchState.currentMatchIndex];
   if (currentMatch) {
     scrollToMatch(currentMatch);
-    highlightMatches(searchState.currentFileMatches);
   }
 }
 
@@ -66,10 +68,12 @@ export function goToPreviousMatch(): void {
 
   previousMatch();
 
+  // Re-highlight all matches with updated current match
+  highlightMatches(searchState.currentFileMatches);
+
   const currentMatch = searchState.currentFileMatches[searchState.currentMatchIndex];
   if (currentMatch) {
     scrollToMatch(currentMatch);
-    highlightMatches(searchState.currentFileMatches);
   }
 }
 

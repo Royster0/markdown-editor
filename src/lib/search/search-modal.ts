@@ -180,8 +180,16 @@ function attachEventListeners(): void {
   });
 
   // Navigation buttons
-  prevBtn?.addEventListener('click', () => goToPreviousMatch());
-  nextBtn?.addEventListener('click', () => goToNextMatch());
+  prevBtn?.addEventListener('click', () => {
+    goToPreviousMatch();
+    const searchState = getSearchState();
+    updateMatchCount(searchState.currentMatchIndex + 1, searchState.totalMatches);
+  });
+  nextBtn?.addEventListener('click', () => {
+    goToNextMatch();
+    const searchState = getSearchState();
+    updateMatchCount(searchState.currentMatchIndex + 1, searchState.totalMatches);
+  });
 
   // Replace buttons
   replaceBtn?.addEventListener('click', () => replaceCurrentMatch());
