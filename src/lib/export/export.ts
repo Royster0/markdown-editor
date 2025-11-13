@@ -245,7 +245,7 @@ export async function exportToHTML(): Promise<void> {
 }
 
 /**
- * Export current document to PDF (using browser print dialog)
+ * Export current document to PDF (saves as print-ready HTML)
  */
 export async function exportToPDF(): Promise<void> {
   try {
@@ -255,6 +255,17 @@ export async function exportToPDF(): Promise<void> {
     }
 
     const filename = getFileName();
+    const filePath = await save({
+      defaultPath: `${filename}.html`,
+      filters: [{
+        name: "HTML for PDF",
+        extensions: ["html"]
+      }]
+    });
+
+    if (!filePath) {
+      return; // User cancelled
+    }
 
     // Get rendered HTML lines
     const renderedLines = await renderAllLinesToHTML();
@@ -413,32 +424,14 @@ export async function exportToPDF(): Promise<void> {
 </head>
 <body>
   ${content}
-  <script>
-    // Auto-trigger print dialog when page loads
-    window.onload = function() {
-      window.print();
-    };
-  </script>
 </body>
 </html>`;
 
-    // Create a blob and open it in a new window
-    const blob = new Blob([htmlDocument], { type: 'text/html' });
-    const url = URL.createObjectURL(blob);
+    await writeTextFile(filePath, htmlDocument);
 
-    // Open in new window for printing
-    const printWindow = window.open(url, '_blank');
-
-    if (!printWindow) {
-      alert("Please allow pop-ups to export to PDF. You can also export to HTML and print from there.");
-      return;
-    }
-
-    // Clean up the blob URL after a delay
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 1000);
-
+    // Show success message with instructions
+    const message = `Successfully exported to ${filePath}\n\nTo convert to PDF:\n1. Open the HTML file in your browser\n2. Press Ctrl+P (Cmd+P on Mac)\n3. Select "Save as PDF" as the printer\n4. Click Save`;
+    alert(message);
   } catch (error) {
     console.error("Error exporting to PDF:", error);
     alert(`Failed to export to PDF: ${error}`);
