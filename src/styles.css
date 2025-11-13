@@ -219,7 +219,7 @@ body {
   border-radius: 4px;
   min-width: 150px;
   padding: 4px 0;
-  margin-left: 4px;
+  margin-left: -1px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   z-index: 1001;
 }
@@ -228,7 +228,8 @@ body {
   display: none;
 }
 
-.file-menu-submenu:hover .file-submenu {
+.file-menu-submenu:hover .file-submenu,
+.file-submenu:hover {
   display: block;
 }
 
