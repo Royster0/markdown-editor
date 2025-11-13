@@ -320,6 +320,83 @@ fn move_path(source_path: String, dest_dir_path: String) -> Result<String, Strin
     Ok(new_path)
 }
 
+// Copy a file or folder to a different directory
+#[tauri::command]
+fn copy_path(source_path: String, dest_dir_path: String) -> Result<String, String> {
+    let source_path_buf = PathBuf::from(&source_path);
+    let dest_dir_buf = PathBuf::from(&dest_dir_path);
+
+    // Check if source exists
+    if !source_path_buf.exists() {
+        return Err("Source path does not exist".to_string());
+    }
+
+    // Check if destination directory exists
+    if !dest_dir_buf.exists() {
+        return Err("Destination directory does not exist".to_string());
+    }
+
+    // Check if destination is a directory
+    if !dest_dir_buf.is_dir() {
+        return Err("Destination must be a directory".to_string());
+    }
+
+    // Get the file/folder name
+    let name = source_path_buf.file_name()
+        .ok_or_else(|| "Cannot get source name".to_string())?;
+
+    // Create new path in destination directory
+    let new_path_buf = dest_dir_buf.join(name);
+
+    // Check if destination already has a file/folder with the same name
+    if new_path_buf.exists() {
+        return Err("A file or folder with that name already exists in the destination".to_string());
+    }
+
+    // Copy the file or folder
+    if source_path_buf.is_file() {
+        // Copy file
+        fs::copy(&source_path_buf, &new_path_buf)
+            .map_err(|e| format!("Failed to copy file: {}", e))?;
+    } else if source_path_buf.is_dir() {
+        // Copy directory recursively
+        copy_dir_recursive(&source_path_buf, &new_path_buf)?;
+    } else {
+        return Err("Source is neither a file nor a directory".to_string());
+    }
+
+    let new_path = new_path_buf.to_string_lossy().to_string();
+    println!("Copied {:?} to {:?}", source_path, new_path);
+    Ok(new_path)
+}
+
+// Helper function to copy directory recursively
+fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> Result<(), String> {
+    // Create destination directory
+    fs::create_dir(dest)
+        .map_err(|e| format!("Failed to create directory: {}", e))?;
+
+    // Read source directory
+    let entries = fs::read_dir(src)
+        .map_err(|e| format!("Failed to read directory: {}", e))?;
+
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
+        let path = entry.path();
+        let name = entry.file_name();
+        let dest_path = dest.join(&name);
+
+        if path.is_file() {
+            fs::copy(&path, &dest_path)
+                .map_err(|e| format!("Failed to copy file: {}", e))?;
+        } else if path.is_dir() {
+            copy_dir_recursive(&path, &dest_path)?;
+        }
+    }
+
+    Ok(())
+}
+
 // Save image from base64 data to disk
 #[tauri::command]
 fn save_image_from_clipboard(
@@ -507,6 +584,7 @@ pub fn run() {
             count_folder_contents,
             rename_path,
             move_path,
+            copy_path,
             save_image_from_clipboard,
             start_watching_directory,
             stop_watching_directory,

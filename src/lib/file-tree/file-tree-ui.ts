@@ -8,13 +8,24 @@ import type { FileEntry } from "../core/types";
 import { fileTree } from "../core/dom";
 import { loadFileContent } from "../file-operations";
 import { showContextMenu, initContextMenu } from "./context-menu";
-import { expandedFolders, refreshAndRevealFile } from "./file-tree-core";
+import { expandedFolders, refreshAndRevealFile, refreshFileTree } from "./file-tree-core";
 import { initSidebarResize } from "./sidebar";
 import { state } from "../core/state";
 
 // Store the currently dragged item
 let draggedItemPath: string | null = null;
 let isDragging = false;
+
+// Track selected items for multi-select
+const selectedItems = new Set<string>();
+let lastSelectedPath: string | null = null;
+
+// Clipboard for copy/paste operations
+interface ClipboardData {
+  paths: string[];
+  operation: 'copy' | 'cut';
+}
+let clipboard: ClipboardData | null = null;
 
 /**
  * Context menu handler for empty space in file tree
@@ -23,7 +34,7 @@ function handleFileTreeContextMenu(e: MouseEvent) {
   // Only trigger if clicking directly on fileTree (not on tree items)
   if (e.target === fileTree) {
     e.preventDefault();
-    showContextMenu(e.clientX, e.clientY, null, false);
+    showContextMenu(e.clientX, e.clientY, null, false, selectedItems.size);
   }
 }
 
@@ -117,7 +128,14 @@ export function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement
   item.addEventListener("contextmenu", (e) => {
     e.preventDefault();
     e.stopPropagation();
-    showContextMenu(e.clientX, e.clientY, entry.path, entry.is_dir);
+
+    // If right-clicking on a non-selected item, select it first
+    if (!selectedItems.has(entry.path)) {
+      clearAllSelections();
+      selectItem(entry.path, item);
+    }
+
+    showContextMenu(e.clientX, e.clientY, entry.path, entry.is_dir, selectedItems.size);
   });
 
   // Children container for folders
@@ -130,20 +148,40 @@ export function createTreeItem(entry: FileEntry, level: number = 0): HTMLElement
     item.addEventListener("click", async (e) => {
       if (isDragging) return; // Don't handle clicks while dragging
       e.stopPropagation();
-      await toggleFolder(item, childrenContainer, entry, level);
+
+      // Handle multi-select for folders
+      if (e.ctrlKey || e.metaKey) {
+        // Ctrl/Cmd+Click: Toggle selection
+        toggleItemSelection(entry.path, item);
+      } else if (e.shiftKey && lastSelectedPath) {
+        // Shift+Click: Range selection
+        selectRange(lastSelectedPath, entry.path);
+      } else {
+        // Normal click: Single selection and toggle folder
+        clearAllSelections();
+        selectItem(entry.path, item);
+        await toggleFolder(item, childrenContainer, entry, level);
+      }
     });
   } else {
     // Click handler for files
     item.addEventListener("click", async (e) => {
       if (isDragging) return; // Don't handle clicks while dragging
       e.stopPropagation();
-      await loadFileContent(entry.path);
 
-      // Update selection
-      document
-        .querySelectorAll(".tree-item")
-        .forEach((el) => el.classList.remove("selected"));
-      item.classList.add("selected");
+      // Handle multi-select
+      if (e.ctrlKey || e.metaKey) {
+        // Ctrl/Cmd+Click: Toggle selection
+        toggleItemSelection(entry.path, item);
+      } else if (e.shiftKey && lastSelectedPath) {
+        // Shift+Click: Range selection
+        selectRange(lastSelectedPath, entry.path);
+      } else {
+        // Normal click: Single selection
+        clearAllSelections();
+        selectItem(entry.path, item);
+        await loadFileContent(entry.path);
+      }
     });
   }
 
@@ -345,11 +383,293 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
 }
 
 /**
+ * Delete multiple selected items
+ */
+async function deleteSelectedItems() {
+  if (selectedItems.size === 0) return;
+
+  const itemCount = selectedItems.size;
+  const confirmed = await window.confirm(
+    `Delete ${itemCount} item${itemCount > 1 ? 's' : ''}?\n\nThis action cannot be undone.`
+  );
+
+  if (!confirmed) return;
+
+  try {
+    for (const path of Array.from(selectedItems)) {
+      const item = fileTree.querySelector(`.tree-item[data-path="${CSS.escape(path)}"]`);
+      const isDir = item?.getAttribute("data-is-dir") === "true";
+
+      if (isDir) {
+        await invoke("delete_folder", { path });
+      } else {
+        await invoke("delete_file", { path });
+      }
+    }
+
+    // Clear selections
+    clearAllSelections();
+
+    // Refresh the file tree
+    await refreshFileTree();
+    console.log("Successfully deleted selected items");
+  } catch (error) {
+    console.error("Failed to delete items:", error);
+    alert(`Failed to delete items: ${error}`);
+  }
+}
+
+/**
+ * Select a single item
+ */
+function selectItem(path: string, element: HTMLElement) {
+  selectedItems.clear();
+  selectedItems.add(path);
+  lastSelectedPath = path;
+  element.classList.add("selected");
+}
+
+/**
+ * Toggle item selection
+ */
+function toggleItemSelection(path: string, element: HTMLElement) {
+  if (selectedItems.has(path)) {
+    selectedItems.delete(path);
+    element.classList.remove("selected");
+    if (lastSelectedPath === path) {
+      lastSelectedPath = selectedItems.size > 0 ? Array.from(selectedItems)[0] : null;
+    }
+  } else {
+    selectedItems.add(path);
+    lastSelectedPath = path;
+    element.classList.add("selected");
+  }
+}
+
+/**
+ * Clear all selections
+ */
+function clearAllSelections() {
+  selectedItems.clear();
+  document.querySelectorAll(".tree-item.selected")
+    .forEach((el) => el.classList.remove("selected"));
+}
+
+/**
+ * Select a range of items between two paths
+ */
+function selectRange(startPath: string, endPath: string) {
+  const allItems = Array.from(fileTree.querySelectorAll(".tree-item")) as HTMLElement[];
+  const startIndex = allItems.findIndex(item => item.getAttribute("data-path") === startPath);
+  const endIndex = allItems.findIndex(item => item.getAttribute("data-path") === endPath);
+
+  if (startIndex === -1 || endIndex === -1) return;
+
+  const [from, to] = startIndex < endIndex ? [startIndex, endIndex] : [endIndex, startIndex];
+
+  clearAllSelections();
+  for (let i = from; i <= to; i++) {
+    const item = allItems[i];
+    const path = item.getAttribute("data-path");
+    if (path) {
+      selectedItems.add(path);
+      item.classList.add("selected");
+    }
+  }
+  lastSelectedPath = endPath;
+}
+
+/**
+ * Copy selected items to clipboard
+ */
+function copySelectedItems() {
+  if (selectedItems.size === 0) return;
+  clipboard = {
+    paths: Array.from(selectedItems),
+    operation: 'copy'
+  };
+  console.log("Copied items:", clipboard.paths);
+
+  // Remove cut visual feedback from all items
+  document.querySelectorAll(".tree-item.cut")
+    .forEach(el => el.classList.remove("cut"));
+}
+
+/**
+ * Cut selected items to clipboard
+ */
+function cutSelectedItems() {
+  if (selectedItems.size === 0) return;
+  clipboard = {
+    paths: Array.from(selectedItems),
+    operation: 'cut'
+  };
+  console.log("Cut items:", clipboard.paths);
+
+  // Add visual feedback for cut items
+  document.querySelectorAll(".tree-item.cut")
+    .forEach(el => el.classList.remove("cut"));
+
+  selectedItems.forEach(path => {
+    const item = fileTree.querySelector(`.tree-item[data-path="${CSS.escape(path)}"]`);
+    if (item) {
+      item.classList.add("cut");
+    }
+  });
+}
+
+/**
+ * Paste items from clipboard
+ */
+async function pasteItems(targetPath: string | null) {
+  if (!clipboard || clipboard.paths.length === 0) {
+    console.log("Nothing to paste");
+    return;
+  }
+
+  // Determine the destination folder
+  let destPath = targetPath;
+  if (!destPath) {
+    destPath = state.currentFolder;
+  } else if (targetPath) {
+    // Check if target is a file or folder
+    const targetItem = fileTree.querySelector(`.tree-item[data-path="${CSS.escape(targetPath)}"]`);
+    const isDir = targetItem?.getAttribute("data-is-dir") === "true";
+    if (!isDir) {
+      // If it's a file, use its parent directory
+      const separator = targetPath.includes("\\") ? "\\" : "/";
+      const parts = targetPath.split(separator);
+      parts.pop();
+      destPath = parts.join(separator) || state.currentFolder;
+    }
+  }
+
+  if (!destPath) {
+    alert("No destination folder");
+    return;
+  }
+
+  console.log("Pasting to:", destPath);
+  console.log("Items:", clipboard.paths);
+  console.log("Operation:", clipboard.operation);
+
+  try {
+    for (const sourcePath of clipboard.paths) {
+      const separator = sourcePath.includes("\\") ? "\\" : "/";
+      const fileName = sourcePath.split(separator).pop();
+
+      if (!fileName) continue;
+
+      if (clipboard.operation === 'cut') {
+        // Move the item
+        console.log("Moving:", sourcePath, "to:", destPath);
+        const newPath = await invoke<string>("move_path", {
+          sourcePath: sourcePath,
+          destDirPath: destPath,
+        });
+
+        // Update state if we moved the currently open file
+        if (state.currentFile === sourcePath) {
+          state.currentFile = newPath;
+        }
+      } else {
+        // Copy the item
+        console.log("Copying:", sourcePath, "to:", destPath);
+        await invoke("copy_path", {
+          sourcePath: sourcePath,
+          destDirPath: destPath,
+        });
+      }
+    }
+
+    // Clear clipboard and visual feedback after cut operation
+    if (clipboard.operation === 'cut') {
+      document.querySelectorAll(".tree-item.cut")
+        .forEach(el => el.classList.remove("cut"));
+      clipboard = null;
+    }
+
+    // Refresh the file tree
+    await refreshFileTree();
+    console.log("Paste operation completed successfully");
+  } catch (error) {
+    console.error("Failed to paste:", error);
+    alert(`Failed to paste: ${error}`);
+  }
+}
+
+/**
  * Initialize file tree functionality
  */
 export function initFileTree() {
   initContextMenu();
   initSidebarResize();
+
+  // Add event listeners for context menu actions
+  document.addEventListener('file-tree-copy', () => {
+    copySelectedItems();
+  });
+
+  document.addEventListener('file-tree-cut', () => {
+    cutSelectedItems();
+  });
+
+  document.addEventListener('file-tree-paste', async (e: Event) => {
+    const customEvent = e as CustomEvent;
+    const targetPath = customEvent.detail?.targetPath || null;
+    await pasteItems(targetPath);
+  });
+
+  document.addEventListener('file-tree-delete', async () => {
+    await deleteSelectedItems();
+  });
+
+  // Add keyboard shortcuts for copy/paste
+  document.addEventListener("keydown", async (e) => {
+    // Only handle shortcuts when file tree is focused or selected items exist
+    const isFileTreeFocused = fileTree.contains(document.activeElement) ||
+                              selectedItems.size > 0;
+
+    if (!isFileTreeFocused) return;
+
+    // Copy: Ctrl+C or Cmd+C
+    if ((e.ctrlKey || e.metaKey) && e.key === 'c' && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      copySelectedItems();
+    }
+    // Cut: Ctrl+X or Cmd+X
+    else if ((e.ctrlKey || e.metaKey) && e.key === 'x' && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      cutSelectedItems();
+    }
+    // Paste: Ctrl+V or Cmd+V
+    else if ((e.ctrlKey || e.metaKey) && e.key === 'v' && !e.shiftKey && !e.altKey) {
+      e.preventDefault();
+      // Paste to the first selected item or current folder
+      const targetPath = selectedItems.size > 0 ?
+                         Array.from(selectedItems)[0] :
+                         state.currentFolder;
+      await pasteItems(targetPath);
+    }
+    // Select All: Ctrl+A or Cmd+A (when focused in file tree)
+    else if ((e.ctrlKey || e.metaKey) && e.key === 'a' &&
+             fileTree.contains(document.activeElement)) {
+      e.preventDefault();
+      // Select all visible items
+      const allItems = fileTree.querySelectorAll(".tree-item") as NodeListOf<HTMLElement>;
+      clearAllSelections();
+      allItems.forEach(item => {
+        const path = item.getAttribute("data-path");
+        if (path) {
+          selectedItems.add(path);
+          item.classList.add("selected");
+        }
+      });
+      if (selectedItems.size > 0) {
+        lastSelectedPath = Array.from(selectedItems)[selectedItems.size - 1];
+      }
+    }
+  });
 
   // Add context menu handler for empty space (only once during init)
   fileTree.addEventListener("contextmenu", handleFileTreeContextMenu);

@@ -44,12 +44,13 @@ export function showContextMenu(
   x: number,
   y: number,
   path: string | null,
-  isDir: boolean
+  isDir: boolean,
+  selectedCount: number = 0
 ) {
   if (!contextMenu) return;
 
   // Build menu items based on context
-  const items = getContextMenuItems(path, isDir);
+  const items = getContextMenuItems(path, isDir, selectedCount);
 
   // Clear existing items
   contextMenu.innerHTML = "";
@@ -104,12 +105,47 @@ export function hideContextMenu() {
  */
 function getContextMenuItems(
   path: string | null,
-  isDir: boolean
+  isDir: boolean,
+  selectedCount: number = 0
 ): (ContextMenuItem | "separator")[] {
   const fileIcon = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 1h7l3 3v10H3z"></path><polyline points="10 1 10 4 13 4"></polyline></svg>`;
   const folderIcon = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 3h4l1 2h7v9H2z"></path></svg>`;
   const renameIcon = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12h10M8 3v9"></path></svg>`;
   const deleteIcon = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 4h10M5 4V3h6v1M6 4v8h4V4"></path></svg>`;
+  const copyIcon = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="4" width="8" height="8"></rect><path d="M2 2h8v2M10 2v8h2"></path></svg>`;
+  const cutIcon = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"></path></svg>`;
+  const pasteIcon = `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="4" y="6" width="8" height="8"></rect><path d="M6 6V4h4v2"></path></svg>`;
+
+  // Multi-selection context menu
+  if (selectedCount > 1) {
+    return [
+      {
+        label: `Copy (${selectedCount} items)`,
+        icon: copyIcon,
+        action: () => {
+          // Trigger copy from file-tree-ui
+          document.dispatchEvent(new CustomEvent('file-tree-copy'));
+        },
+      },
+      {
+        label: `Cut (${selectedCount} items)`,
+        icon: cutIcon,
+        action: () => {
+          // Trigger cut from file-tree-ui
+          document.dispatchEvent(new CustomEvent('file-tree-cut'));
+        },
+      },
+      "separator",
+      {
+        label: `Delete (${selectedCount} items)`,
+        icon: deleteIcon,
+        action: () => {
+          // Trigger delete from file-tree-ui
+          document.dispatchEvent(new CustomEvent('file-tree-delete'));
+        },
+      },
+    ];
+  }
 
   if (!path) {
     // Right-clicked on empty space
@@ -124,6 +160,17 @@ function getContextMenuItems(
         icon: folderIcon,
         action: () => createNewFolder(state.currentFolder),
       },
+      "separator",
+      {
+        label: "Paste",
+        icon: pasteIcon,
+        action: () => {
+          // Trigger paste from file-tree-ui
+          document.dispatchEvent(new CustomEvent('file-tree-paste', {
+            detail: { targetPath: state.currentFolder }
+          }));
+        },
+      },
     ];
   } else if (isDir) {
     // Right-clicked on a folder
@@ -137,6 +184,30 @@ function getContextMenuItems(
         label: "New Folder",
         icon: folderIcon,
         action: () => createNewFolder(path),
+      },
+      "separator",
+      {
+        label: "Copy",
+        icon: copyIcon,
+        action: () => {
+          document.dispatchEvent(new CustomEvent('file-tree-copy'));
+        },
+      },
+      {
+        label: "Cut",
+        icon: cutIcon,
+        action: () => {
+          document.dispatchEvent(new CustomEvent('file-tree-cut'));
+        },
+      },
+      {
+        label: "Paste",
+        icon: pasteIcon,
+        action: () => {
+          document.dispatchEvent(new CustomEvent('file-tree-paste', {
+            detail: { targetPath: path }
+          }));
+        },
       },
       "separator",
       {
@@ -157,6 +228,21 @@ function getContextMenuItems(
         label: "Open File",
         icon: fileIcon,
         action: () => loadFileContent(path),
+      },
+      "separator",
+      {
+        label: "Copy",
+        icon: copyIcon,
+        action: () => {
+          document.dispatchEvent(new CustomEvent('file-tree-copy'));
+        },
+      },
+      {
+        label: "Cut",
+        icon: cutIcon,
+        action: () => {
+          document.dispatchEvent(new CustomEvent('file-tree-cut'));
+        },
       },
       "separator",
       {
