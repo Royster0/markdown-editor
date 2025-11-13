@@ -12,8 +12,9 @@ import { expandedFolders, refreshAndRevealFile, refreshFileTree } from "./file-t
 import { initSidebarResize } from "./sidebar";
 import { state } from "../core/state";
 
-// Store the currently dragged item
+// Store the currently dragged item(s)
 let draggedItemPath: string | null = null;
+let draggedItems: string[] = [];
 let isDragging = false;
 
 // Track selected items for multi-select
@@ -250,6 +251,18 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
   item.addEventListener("dragstart", (e: DragEvent) => {
     isDragging = true;
     draggedItemPath = entry.path;
+
+    // If this item is selected, drag all selected items
+    // Otherwise, just drag this single item
+    if (selectedItems.has(entry.path)) {
+      draggedItems = Array.from(selectedItems);
+    } else {
+      draggedItems = [entry.path];
+      // Select this item since we're dragging it
+      clearAllSelections();
+      selectItem(entry.path, item);
+    }
+
     item.classList.add("dragging");
 
     // Set drag data - MUST set at least one data item for drag to work
@@ -257,10 +270,19 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
       e.dataTransfer.effectAllowed = "move";
       e.dataTransfer.setData("text/plain", entry.path);
 
-      // Set a custom drag image
+      // Create custom drag image showing count if multiple items
       const dragImage = item.cloneNode(true) as HTMLElement;
       dragImage.style.position = "absolute";
       dragImage.style.top = "-9999px";
+
+      // Add badge for multiple items
+      if (draggedItems.length > 1) {
+        const badge = document.createElement("span");
+        badge.style.cssText = "background: var(--accent-color); color: white; padding: 2px 6px; border-radius: 10px; font-size: 11px; margin-left: 8px;";
+        badge.textContent = String(draggedItems.length);
+        dragImage.appendChild(badge);
+      }
+
       document.body.appendChild(dragImage);
       e.dataTransfer.setDragImage(dragImage, 0, 0);
 
@@ -275,6 +297,7 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
   item.addEventListener("dragend", () => {
     item.classList.remove("dragging");
     draggedItemPath = null;
+    draggedItems = [];
 
     // Reset isDragging after a short delay to allow click events to check it
     setTimeout(() => {
@@ -343,37 +366,56 @@ function setupDragAndDrop(item: HTMLElement, entry: FileEntry) {
       e.stopPropagation();
       item.classList.remove("drag-over");
 
-      if (!draggedItemPath) return;
+      if (!draggedItemPath || draggedItems.length === 0) return;
 
-      // Don't allow dropping into itself
-      if (draggedItemPath === entry.path) {
-        return;
-      }
-
-      // Don't allow moving a parent folder into its child
       const separator = entry.path.includes("\\") ? "\\" : "/";
-      if (entry.path.startsWith(draggedItemPath + separator)) {
-        alert("Cannot move a folder into its own subfolder");
-        return;
+
+      // Check if any item is being dropped into itself or its own subfolder
+      for (const itemPath of draggedItems) {
+        // Don't allow dropping into itself
+        if (itemPath === entry.path) {
+          alert("Cannot move an item into itself");
+          return;
+        }
+
+        // Don't allow moving a parent folder into its child
+        if (entry.path.startsWith(itemPath + separator)) {
+          alert("Cannot move a folder into its own subfolder");
+          return;
+        }
       }
 
       try {
-        console.log("Moving:", draggedItemPath, "to:", entry.path);
-        // Move the file/folder
-        const newPath = await invoke<string>("move_path", {
-          sourcePath: draggedItemPath,
-          destDirPath: entry.path,
-        });
+        console.log(`Moving ${draggedItems.length} item(s) to:`, entry.path);
 
-        console.log("Moved successfully to:", newPath);
+        let lastMovedPath: string | null = null;
 
-        // Update state if we moved the currently open file
-        if (state.currentFile === draggedItemPath) {
-          state.currentFile = newPath;
+        // Move all dragged items
+        for (const sourcePath of draggedItems) {
+          console.log("Moving:", sourcePath, "to:", entry.path);
+          const newPath = await invoke<string>("move_path", {
+            sourcePath: sourcePath,
+            destDirPath: entry.path,
+          });
+
+          console.log("Moved successfully to:", newPath);
+          lastMovedPath = newPath;
+
+          // Update state if we moved the currently open file
+          if (state.currentFile === sourcePath) {
+            state.currentFile = newPath;
+          }
         }
 
-        // Refresh and reveal the moved item
-        await refreshAndRevealFile(newPath);
+        // Clear selections after move
+        clearAllSelections();
+
+        // Refresh and reveal the last moved item
+        if (lastMovedPath) {
+          await refreshAndRevealFile(lastMovedPath);
+        } else {
+          await refreshFileTree();
+        }
       } catch (error) {
         console.error("Failed to move:", error);
         alert(`Failed to move: ${error}`);
@@ -699,22 +741,37 @@ export function initFileTree() {
       e.preventDefault();
       fileTree.classList.remove("drag-over-root");
 
-      if (!draggedItemPath || !state.currentFolder) return;
+      if (!draggedItemPath || !state.currentFolder || draggedItems.length === 0) return;
 
       try {
-        // Move the file/folder to the root directory
-        const newPath = await invoke<string>("move_path", {
-          sourcePath: draggedItemPath,
-          destDirPath: state.currentFolder,
-        });
+        console.log(`Moving ${draggedItems.length} item(s) to root:`, state.currentFolder);
 
-        // Update state if we moved the currently open file
-        if (state.currentFile === draggedItemPath) {
-          state.currentFile = newPath;
+        let lastMovedPath: string | null = null;
+
+        // Move all dragged items to the root directory
+        for (const sourcePath of draggedItems) {
+          const newPath = await invoke<string>("move_path", {
+            sourcePath: sourcePath,
+            destDirPath: state.currentFolder,
+          });
+
+          lastMovedPath = newPath;
+
+          // Update state if we moved the currently open file
+          if (state.currentFile === sourcePath) {
+            state.currentFile = newPath;
+          }
         }
 
-        // Refresh and reveal the moved item
-        await refreshAndRevealFile(newPath);
+        // Clear selections after move
+        clearAllSelections();
+
+        // Refresh and reveal the last moved item
+        if (lastMovedPath) {
+          await refreshAndRevealFile(lastMovedPath);
+        } else {
+          await refreshFileTree();
+        }
       } catch (error) {
         console.error("Failed to move to root:", error);
         alert(`Failed to move: ${error}`);

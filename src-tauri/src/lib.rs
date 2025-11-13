@@ -359,8 +359,9 @@ fn copy_path(source_path: String, dest_dir_path: String) -> Result<String, Strin
         fs::copy(&source_path_buf, &new_path_buf)
             .map_err(|e| format!("Failed to copy file: {}", e))?;
     } else if source_path_buf.is_dir() {
-        // Copy directory recursively
-        copy_dir_recursive(&source_path_buf, &new_path_buf)?;
+        // Copy directory recursively with depth limit
+        const MAX_DEPTH: usize = 100;
+        copy_dir_recursive(&source_path_buf, &new_path_buf, 0, MAX_DEPTH)?;
     } else {
         return Err("Source is neither a file nor a directory".to_string());
     }
@@ -370,8 +371,13 @@ fn copy_path(source_path: String, dest_dir_path: String) -> Result<String, Strin
     Ok(new_path)
 }
 
-// Helper function to copy directory recursively
-fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> Result<(), String> {
+// Helper function to copy directory recursively with depth limit
+fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf, depth: usize, max_depth: usize) -> Result<(), String> {
+    // Check depth limit to prevent stack overflow
+    if depth >= max_depth {
+        return Err(format!("Directory depth exceeds maximum limit of {}", max_depth));
+    }
+
     // Create destination directory
     fs::create_dir(dest)
         .map_err(|e| format!("Failed to create directory: {}", e))?;
@@ -384,14 +390,27 @@ fn copy_dir_recursive(src: &PathBuf, dest: &PathBuf) -> Result<(), String> {
         let entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
         let path = entry.path();
         let name = entry.file_name();
+        let name_str = name.to_string_lossy();
         let dest_path = dest.join(&name);
 
-        if path.is_file() {
+        // Skip hidden files and directories (starting with .)
+        if name_str.starts_with('.') {
+            println!("Skipping hidden file/directory: {:?}", name_str);
+            continue;
+        }
+
+        // Follow symlinks but don't copy the symlink itself
+        let metadata = fs::metadata(&path)
+            .map_err(|e| format!("Failed to read metadata: {}", e))?;
+
+        if metadata.is_file() {
             fs::copy(&path, &dest_path)
                 .map_err(|e| format!("Failed to copy file: {}", e))?;
-        } else if path.is_dir() {
-            copy_dir_recursive(&path, &dest_path)?;
+        } else if metadata.is_dir() {
+            // Recursively copy subdirectory with incremented depth
+            copy_dir_recursive(&path, &dest_path, depth + 1, max_depth)?;
         }
+        // Skip other types (symlinks, devices, etc.)
     }
 
     Ok(())
