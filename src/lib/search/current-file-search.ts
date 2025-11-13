@@ -9,6 +9,7 @@ import { getSearchState, setCurrentFileMatches, nextMatch, previousMatch } from 
 import { highlightMatches, scrollToMatch, clearHighlights } from './search-highlighting';
 import { state } from '../core/state';
 import { editor } from '../core/dom';
+import { renderAllLines } from '../editor/rendering';
 
 /**
  * Get the rendered text content from the editor (line by line)
@@ -24,6 +25,24 @@ function getRenderedContent(): string {
   });
 
   return lines.join('\n');
+}
+
+/**
+ * Update state.content from the editor's data-raw attributes
+ */
+function updateStateFromEditor(): void {
+  if (!editor) return;
+
+  const lines: string[] = [];
+  const lineElements = editor.querySelectorAll('.editor-line');
+
+  lineElements.forEach((lineElement) => {
+    const rawText = lineElement.getAttribute('data-raw') || '';
+    lines.push(rawText);
+  });
+
+  state.content = lines.join('\n');
+  state.isDirty = true;
 }
 
 /**
@@ -110,44 +129,84 @@ export function goToPreviousMatch(): void {
 }
 
 /**
- * Replace the current match
+ * Replace the current match in the rendered content
  */
 export async function replaceCurrentMatch(): Promise<void> {
   const searchState = getSearchState();
-  if (searchState.currentFileMatches.length === 0 || !state.content) return;
+  if (searchState.currentFileMatches.length === 0 || !editor) return;
 
   const currentMatch = searchState.currentFileMatches[searchState.currentMatchIndex];
   if (!currentMatch) return;
 
   try {
-    // Get lines
-    const lines = state.content.split('\n');
-    const lineIndex = currentMatch.line - 1;
+    // Find the line element
+    const lineElement = editor.querySelector(`.editor-line[data-line="${currentMatch.line - 1}"]`) as HTMLElement;
+    if (!lineElement) return;
 
-    if (lineIndex < 0 || lineIndex >= lines.length) return;
+    // Get the raw text of the line
+    const rawText = lineElement.getAttribute('data-raw') || '';
+    const renderedText = lineElement.textContent || '';
 
-    const line = lines[lineIndex];
-    const columnIndex = currentMatch.column - 1;
+    // Find the match in the rendered text
+    const renderedStartPos = currentMatch.column - 1;
+    const renderedEndPos = renderedStartPos + currentMatch.length;
 
-    // Replace the match in the line
-    const newLine =
-      line.substring(0, columnIndex) +
-      searchState.replaceText +
-      line.substring(columnIndex + currentMatch.length);
+    // We need to find the corresponding position in the raw markdown
+    // For now, we'll try to find the match text in the raw content
+    const matchText = renderedText.substring(renderedStartPos, renderedEndPos);
 
-    lines[lineIndex] = newLine;
+    // Try to find this text in the raw content
+    const rawMatchIndex = rawText.indexOf(matchText);
 
-    // Update state and editor
-    const newContent = lines.join('\n');
-    state.content = newContent;
-    state.isDirty = true;
+    if (rawMatchIndex !== -1) {
+      // Found exact match in raw text - simple case
+      const newRawText =
+        rawText.substring(0, rawMatchIndex) +
+        searchState.replaceText +
+        rawText.substring(rawMatchIndex + matchText.length);
 
-    if (editor) {
-      editor.textContent = newContent;
+      // Update the line's data-raw attribute
+      lineElement.setAttribute('data-raw', newRawText);
+
+      // Update state.content from all lines
+      updateStateFromEditor();
+
+      // Re-render the line
+      await renderAllLines(null, state.editMode);
+
+      // Re-search to update match positions
+      setTimeout(async () => {
+        await searchInCurrentFile(searchState.query, searchState.options);
+      }, 100);
+    } else {
+      // Couldn't find exact match - this happens when markdown formatting changes the text
+      // In this case, we'll do a more sophisticated search
+      console.warn('Could not find exact match in raw text, using fallback method');
+
+      // Fallback: use regex to replace in the raw text
+      const result = await invoke<{ newContent: string; replacedCount: number }>('replace_in_content', {
+        query: searchState.query,
+        replacement: searchState.replaceText,
+        content: rawText,
+        options: searchState.options,
+      });
+
+      if (result.replacedCount > 0) {
+        // Update just this line
+        lineElement.setAttribute('data-raw', result.newContent);
+
+        // Update state.content from all lines
+        updateStateFromEditor();
+
+        // Re-render the line
+        await renderAllLines(null, state.editMode);
+
+        // Re-search to update match positions
+        setTimeout(async () => {
+          await searchInCurrentFile(searchState.query, searchState.options);
+        }, 100);
+      }
     }
-
-    // Re-search to update match positions
-    await searchInCurrentFile(searchState.query, searchState.options);
   } catch (error) {
     console.error('Replace failed:', error);
   }
@@ -169,21 +228,35 @@ export async function replaceAllInCurrentFile(): Promise<void> {
     });
 
     if (result.replacedCount > 0) {
-      // Update state and editor
+      // Update state content
       state.content = result.newContent;
       state.isDirty = true;
 
+      // Update all line data-raw attributes
       if (editor) {
-        editor.textContent = result.newContent;
+        const newLines = result.newContent.split('\n');
+        const lineElements = editor.querySelectorAll('.editor-line');
+
+        lineElements.forEach((lineElement, index) => {
+          if (index < newLines.length) {
+            lineElement.setAttribute('data-raw', newLines[index]);
+          }
+        });
       }
+
+      // Re-render all lines
+      await renderAllLines(null, state.editMode);
 
       // Clear matches and highlights
       setCurrentFileMatches([]);
       clearHighlights();
 
-      console.log(`Replaced ${result.replacedCount} matches`);
+      alert(`Replaced ${result.replacedCount} match${result.replacedCount === 1 ? '' : 'es'}`);
+    } else {
+      alert('No matches found to replace');
     }
   } catch (error) {
     console.error('Replace all failed:', error);
+    alert('Replace all failed: ' + error);
   }
 }

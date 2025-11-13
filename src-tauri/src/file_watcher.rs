@@ -1,4 +1,4 @@
-use notify::{Watcher, RecursiveMode, Event, Config};
+use notify::{Watcher, RecursiveMode, Event};
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Emitter};
@@ -100,7 +100,7 @@ impl FileWatcherState {
     }
 
     pub fn stop_watching(&mut self) {
-        if let Some(mut watcher) = self.watcher.take() {
+        if let Some(watcher) = self.watcher.take() {
             // The watcher will automatically stop when dropped
             drop(watcher);
             println!("Stopped watching directory");
