@@ -292,7 +292,6 @@ body {
   top: 0;
   z-index: 10;
   background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
   overflow-x: auto;
@@ -340,9 +339,6 @@ body {
   background-color: var(--bg-primary);
   border-color: var(--border-color);
   border-bottom-color: transparent;
-  position: relative;
-  margin-bottom: -1px;
-  z-index: 1;
 }
 
 .tab[draggable="true"] {
