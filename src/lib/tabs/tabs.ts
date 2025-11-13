@@ -176,23 +176,15 @@ export async function closeTab(index: number): Promise<void> {
 
   // Update active tab index
   if (tabs.length === 0) {
-    // No tabs left - only create empty tab if no folder is open
-    if (!state.currentFolder) {
-      const emptyTab = createTab(null, "");
-      tabs.push(emptyTab);
-      activeTabIndex = 0;
-      await loadTabState(emptyTab);
-    } else {
-      // Folder is open, just clear the editor
-      activeTabIndex = -1;
-      state.content = "";
-      state.isDirty = false;
-      state.currentLine = null;
-      state.currentFile = null;
-      editor.innerHTML = "";
-      updateTitle();
-      updateTabBar();
-    }
+    // No tabs left - clear the editor
+    activeTabIndex = -1;
+    state.content = "";
+    state.isDirty = false;
+    state.currentLine = null;
+    state.currentFile = null;
+    editor.innerHTML = "";
+    updateTitle();
+    updateTabBar();
   } else if (index <= activeTabIndex) {
     // Adjust active tab index
     activeTabIndex = Math.max(0, activeTabIndex - 1);
@@ -355,15 +347,7 @@ export function updateTabBar(): void {
  * Initialize the tab system
  */
 export function initTabs(): void {
-  // Create initial empty tab if no tabs exist and no folder is open
-  if (tabs.length === 0 && !state.currentFolder) {
-    const initialTab = createTab(state.currentFile, state.content);
-    initialTab.isDirty = state.isDirty;
-    initialTab.cursorLine = state.currentLine;
-    tabs.push(initialTab);
-    activeTabIndex = 0;
-  }
-
+  // Don't create any initial tab - start with a blank editor
   updateTabBar();
 }
 
