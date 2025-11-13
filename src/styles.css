@@ -522,6 +522,11 @@ body {
   color: var(--accent-color);
 }
 
+.tree-item.cut {
+  opacity: 0.5;
+  font-style: italic;
+}
+
 .tree-item-icon {
   display: inline-flex;
   align-items: center;
