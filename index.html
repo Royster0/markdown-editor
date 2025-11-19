@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/src/assets/Loom_32_32.svg" />
     <link rel="stylesheet" href="/src/styles.css" />
     <link rel="stylesheet" href="/node_modules/katex/dist/katex.min.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -27,7 +28,11 @@
               <line x1="3" y1="18" x2="21" y2="18"></line>
             </svg>
           </button>
-          <button id="toggle-sidebar-titlebar" class="titlebar-btn" title="Toggle Sidebar">
+          <button
+            id="toggle-sidebar-titlebar"
+            class="titlebar-btn"
+            title="Toggle Sidebar"
+          >
             <svg
               width="16"
               height="16"
@@ -40,23 +45,60 @@
               <line x1="9" y1="3" x2="9" y2="21"></line>
             </svg>
           </button>
-          <span class="titlebar-title">Loom.md</span>
+          <img
+            src="/src/assets/Loom_32_32.svg"
+            alt="Loom.md"
+            class="titlebar-logo"
+          />
         </div>
         <div class="titlebar-right">
-          <button id="window-minimize" class="titlebar-control-btn" title="Minimize">
+          <button
+            id="window-minimize"
+            class="titlebar-control-btn"
+            title="Minimize"
+          >
             <svg width="10" height="10" viewBox="0 0 12 12">
               <rect y="5" width="12" height="1" fill="currentColor"></rect>
             </svg>
           </button>
-          <button id="window-maximize" class="titlebar-control-btn" title="Maximize">
+          <button
+            id="window-maximize"
+            class="titlebar-control-btn"
+            title="Maximize"
+          >
             <svg width="10" height="10" viewBox="0 0 12 12">
-              <rect width="9" height="9" x="1.5" y="1.5" fill="none" stroke="currentColor"></rect>
+              <rect
+                width="9"
+                height="9"
+                x="1.5"
+                y="1.5"
+                fill="none"
+                stroke="currentColor"
+              ></rect>
             </svg>
           </button>
-          <button id="window-close" class="titlebar-control-btn close-btn" title="Close">
+          <button
+            id="window-close"
+            class="titlebar-control-btn close-btn"
+            title="Close"
+          >
             <svg width="10" height="10" viewBox="0 0 12 12">
-              <line x1="1" y1="1" x2="11" y2="11" stroke="currentColor" stroke-width="1"></line>
-              <line x1="11" y1="1" x2="1" y2="11" stroke="currentColor" stroke-width="1"></line>
+              <line
+                x1="1"
+                y1="1"
+                x2="11"
+                y2="11"
+                stroke="currentColor"
+                stroke-width="1"
+              ></line>
+              <line
+                x1="11"
+                y1="1"
+                x2="1"
+                y2="11"
+                stroke="currentColor"
+                stroke-width="1"
+              ></line>
             </svg>
           </button>
         </div>
@@ -158,7 +200,15 @@
               <line x1="12" y1="15" x2="12" y2="3"></line>
             </svg>
             <span>Export to</span>
-            <svg class="submenu-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <svg
+              class="submenu-arrow"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
               <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           </button>
@@ -172,7 +222,9 @@
                 stroke="currentColor"
                 stroke-width="2"
               >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                ></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
                 <line x1="16" y1="17" x2="8" y2="17"></line>
@@ -189,7 +241,9 @@
                 stroke="currentColor"
                 stroke-width="2"
               >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                ></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
                 <line x1="16" y1="17" x2="8" y2="17"></line>
@@ -209,7 +263,9 @@
             stroke-width="2"
           >
             <circle cx="12" cy="12" r="3"></circle>
-            <path d="M12 1v6m0 6v6m5.2-14.2l-4.2 4.2m-2 2l-4.2 4.2M23 12h-6m-6 0H1m14.2 5.2l-4.2-4.2m-2-2l-4.2-4.2"></path>
+            <path
+              d="M12 1v6m0 6v6m5.2-14.2l-4.2 4.2m-2 2l-4.2 4.2M23 12h-6m-6 0H1m14.2 5.2l-4.2-4.2m-2-2l-4.2-4.2"
+            ></path>
           </svg>
           <span>Settings</span>
         </button>
@@ -222,7 +278,9 @@
             </div>
             <div class="empty-state">
               <p>No folder opened</p>
-              <button id="open-folder-sidebar" class="open-folder-btn">Open Folder</button>
+              <button id="open-folder-sidebar" class="open-folder-btn">
+                Open Folder
+              </button>
             </div>
           </div>
         </div>
@@ -279,7 +337,14 @@
           <div class="modal-header">
             <h2>Settings</h2>
             <button id="settings-close" class="modal-close-btn" title="Close">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
                 <line x1="18" y1="6" x2="6" y2="18"></line>
                 <line x1="6" y1="6" x2="18" y2="18"></line>
               </svg>
@@ -292,7 +357,9 @@
               <div class="settings-item">
                 <label for="settings-theme-selector">
                   <span class="settings-label">Theme</span>
-                  <span class="settings-description">Choose your editor theme</span>
+                  <span class="settings-description"
+                    >Choose your editor theme</span
+                  >
                 </label>
                 <select id="settings-theme-selector" class="settings-select">
                   <option value="">Loading...</option>
@@ -300,7 +367,14 @@
               </div>
               <div class="settings-item">
                 <button id="settings-import-theme" class="settings-btn">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -314,39 +388,78 @@
             <div class="settings-section">
               <h3 class="settings-section-title">User Interface</h3>
               <div class="settings-item">
-                <label for="settings-status-bar-toggle" class="settings-toggle-label">
+                <label
+                  for="settings-status-bar-toggle"
+                  class="settings-toggle-label"
+                >
                   <div>
                     <span class="settings-label">Status Bar</span>
-                    <span class="settings-description">Show word count, character count, and cursor position</span>
+                    <span class="settings-description"
+                      >Show word count, character count, and cursor
+                      position</span
+                    >
                   </div>
-                  <input type="checkbox" id="settings-status-bar-toggle" class="settings-toggle" checked />
+                  <input
+                    type="checkbox"
+                    id="settings-status-bar-toggle"
+                    class="settings-toggle"
+                    checked
+                  />
                   <span class="settings-toggle-slider"></span>
                 </label>
               </div>
               <div class="settings-item">
                 <label for="settings-image-folder">
                   <span class="settings-label">Image Save Folder</span>
-                  <span class="settings-description">Default folder for pasted images (relative to current folder)</span>
+                  <span class="settings-description"
+                    >Default folder for pasted images (relative to current
+                    folder)</span
+                  >
                 </label>
-                <input type="text" id="settings-image-folder" class="settings-input" placeholder="." />
+                <input
+                  type="text"
+                  id="settings-image-folder"
+                  class="settings-input"
+                  placeholder="."
+                />
               </div>
               <div class="settings-item">
-                <label for="settings-confirm-file-delete" class="settings-toggle-label">
+                <label
+                  for="settings-confirm-file-delete"
+                  class="settings-toggle-label"
+                >
                   <div>
                     <span class="settings-label">Confirm File Deletion</span>
-                    <span class="settings-description">Show confirmation dialog before deleting files</span>
+                    <span class="settings-description"
+                      >Show confirmation dialog before deleting files</span
+                    >
                   </div>
-                  <input type="checkbox" id="settings-confirm-file-delete" class="settings-toggle" checked />
+                  <input
+                    type="checkbox"
+                    id="settings-confirm-file-delete"
+                    class="settings-toggle"
+                    checked
+                  />
                   <span class="settings-toggle-slider"></span>
                 </label>
               </div>
               <div class="settings-item">
-                <label for="settings-confirm-folder-delete" class="settings-toggle-label">
+                <label
+                  for="settings-confirm-folder-delete"
+                  class="settings-toggle-label"
+                >
                   <div>
                     <span class="settings-label">Confirm Folder Deletion</span>
-                    <span class="settings-description">Show confirmation dialog before deleting folders</span>
+                    <span class="settings-description"
+                      >Show confirmation dialog before deleting folders</span
+                    >
                   </div>
-                  <input type="checkbox" id="settings-confirm-folder-delete" class="settings-toggle" checked />
+                  <input
+                    type="checkbox"
+                    id="settings-confirm-folder-delete"
+                    class="settings-toggle"
+                    checked
+                  />
                   <span class="settings-toggle-slider"></span>
                 </label>
               </div>
@@ -355,8 +468,9 @@
             <!-- Keybinds Section -->
             <div class="settings-section">
               <h3 class="settings-section-title">Keybinds</h3>
-              <div class="settings-description" style="margin-bottom: 16px;">
-                Customize keyboard shortcuts for various actions. Click on a keybind to change it.
+              <div class="settings-description" style="margin-bottom: 16px">
+                Customize keyboard shortcuts for various actions. Click on a
+                keybind to change it.
               </div>
               <div id="keybinds-list" class="keybinds-list">
                 <!-- Keybinds will be populated here -->

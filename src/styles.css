@@ -83,6 +83,13 @@ body {
   font-weight: 500;
 }
 
+.titlebar-logo {
+  height: 16px;
+  width: 16px;
+  margin-left: 8px;
+  object-fit: contain;
+}
+
 .titlebar-right {
   display: flex;
   align-items: center;
@@ -724,7 +731,9 @@ body {
 .editor {
   width: 100%;
   max-width: 900px;
-  min-height: calc(100vh - var(--titlebar-height) - 36px - var(--statusbar-height));
+  min-height: calc(
+    100vh - var(--titlebar-height) - 36px - var(--statusbar-height)
+  );
   margin: 0 auto;
   padding: 24px 32px 48px;
   outline: none;
@@ -1513,7 +1522,8 @@ a:hover {
 }
 
 @keyframes pulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 1;
   }
   50% {

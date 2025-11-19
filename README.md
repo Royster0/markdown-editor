@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="src/assets/Loom_32_32.svg" alt="Loom.md Logo" width="64" height="64">
+</div>
+
 <h1 align="center">Loom.md</h1>
 
 <div align="center">
@@ -8,10 +12,10 @@
 
 </div>
 
-
 ## Features
 
 ### Markdown Editing
+
 - **Live Preview**: See your formatted markdown as you type
 - **Dual Mode**: Toggle between editing and preview modes
 - **Syntax Highlighting**: Code blocks with proper syntax support
@@ -19,6 +23,7 @@
 - **GFM Support**: Full GitHub Flavored Markdown compatibility
 
 ### File Management
+
 - **File Tree Navigation**: Visual folder browser with expand/collapse
 - **Multi-Tab Support**: Work on multiple files simultaneously
 - **Drag & Drop**: Drag files and images directly into the editor
@@ -27,41 +32,45 @@
 - **File Watcher**: Automatic refresh when files change externally
 
 ### Customization
+
 - **Theme System**: Built-in dark and light themes
 - **Custom Themes**: Import and create your own themes
 - **Configurable Settings**: Per-folder configuration support
 - **Keyboard Shortcuts**: Fully customizable keybindings
 
 ### Rich Media
+
 - **Image Paste**: Paste images directly from clipboard
 - **Image Drag & Drop**: Drop images from file explorer
 - **Image Preview**: Inline image rendering
 - **Automatic Image Storage**: Configurable image save location
 
 ### Performance
+
 - **Instant Startup**: Native performance with Tauri
 - **Low Memory**: Efficient Rust backend
 - **Parallel Rendering**: Multi-threaded markdown processing
 - **Optimized Bundles**: Tree-shaken, modular code architecture
 
 ### Developer-Friendly
+
 - **Clean Architecture**: Well-organized, maintainable codebase
 - **TypeScript**: Type-safe frontend development
 - **Modular Design**: Single-responsibility modules
 - **Extensible**: Easy to add new features
 
-
-
 ## Installation
 
 ### Download Pre-built Binaries
-*(Coming soon)*
+
+_(Coming soon)_
 
 Download the latest release for your platform from the [Releases](https://github.com/Royster0/Loom.md/releases) page.
 
 ### Build from Source
 
 #### Prerequisites
+
 - [Node.js](https://nodejs.org/) v18 or higher
 - [Rust](https://www.rust-lang.org/) (latest stable)
 - Platform-specific dependencies:
@@ -95,16 +104,12 @@ npm run tauri build
 
 The compiled application will be in `src-tauri/target/release/`.
 
-
-
 ## Documentation
 
 - **[User Guide](docs/USER_GUIDE.md)** - Comprehensive feature guide
 - **[Development Guide](docs/DEVELOPMENT.md)** - Setup and workflow
 - **[Architecture](docs/ARCHITECTURE.md)** - Technical architecture
 - **[Contributing](CONTRIBUTING.md)** - How to contribute
-
-
 
 ## Contributing
 
@@ -145,8 +150,8 @@ npm run tauri build
 - **Build Tool**: Vite
 - **Desktop Framework**: Tauri 2.0
 
-
 ### Planned Features
+
 - Search and replace across files
 - Export to PDF/HTML
 - Plugin system
@@ -158,19 +163,13 @@ npm run tauri build
 - Command palette
 - Split view editing
 
-
-
 ## Known Issues
 
 See the [Issues](https://github.com/Royster0/Loom.md/issues) page for known bugs and feature requests.
 
-
-
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-
 
 ## Acknowledgments
 
@@ -181,14 +180,10 @@ Built with amazing open-source technologies:
 - [KaTeX](https://katex.org/) - Fast math typesetting
 - [Vite](https://vitejs.dev/) - Next generation frontend tooling
 
-
-
 ## Contact & Support
 
 - **Issues**: [GitHub Issues](https://github.com/Royster0/Loom.md/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/Royster0/Loom.md/discussions)
-
-
 
 <div align="center">
 
